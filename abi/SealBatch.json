@@ -1,0 +1,1067 @@
+[
+ {
+  "type": "constructor",
+  "inputs": [
+   {
+    "name": "_windowBlocks",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "_timeoutWindows",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "_bond",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "_feeBps",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "BPS",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "FAUCET_BASE",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "FAUCET_COOLDOWN",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "FAUCET_QUOTE",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "MIN_QTY",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "NUM_TICKS",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "P0",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "STEP",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "base",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "contract MockToken"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "bond",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "cancel",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "claim",
+  "inputs": [
+   {
+    "name": "owner",
+    "type": "address",
+    "internalType": "address"
+   },
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "commit",
+  "inputs": [
+   {
+    "name": "owner",
+    "type": "address",
+    "internalType": "address"
+   },
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "h",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "commitHashOf",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "owner",
+    "type": "address",
+    "internalType": "address"
+   },
+   {
+    "name": "isBuy",
+    "type": "bool",
+    "internalType": "bool"
+   },
+   {
+    "name": "qty",
+    "type": "uint128",
+    "internalType": "uint128"
+   },
+   {
+    "name": "tick",
+    "type": "uint8",
+    "internalType": "uint8"
+   },
+   {
+    "name": "salt",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "currentWindow",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "deposit",
+  "inputs": [
+   {
+    "name": "token",
+    "type": "address",
+    "internalType": "address"
+   },
+   {
+    "name": "amount",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "faucetToWallet",
+  "inputs": [],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "feeBps",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "fillOf",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "owner",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "freeBase",
+  "inputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "freeQuote",
+  "inputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "genesisBlock",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "getBatch",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "tuple",
+    "internalType": "struct SealBatch.Batch",
+    "components": [
+     {
+      "name": "commits",
+      "type": "uint32",
+      "internalType": "uint32"
+     },
+     {
+      "name": "reveals",
+      "type": "uint32",
+      "internalType": "uint32"
+     },
+     {
+      "name": "settled",
+      "type": "bool",
+      "internalType": "bool"
+     },
+     {
+      "name": "cancelled",
+      "type": "bool",
+      "internalType": "bool"
+     },
+     {
+      "name": "priceTick",
+      "type": "uint8",
+      "internalType": "uint8"
+     },
+     {
+      "name": "rationedSide",
+      "type": "uint8",
+      "internalType": "uint8"
+     },
+     {
+      "name": "marginalTick",
+      "type": "uint8",
+      "internalType": "uint8"
+     },
+     {
+      "name": "volume",
+      "type": "uint128",
+      "internalType": "uint128"
+     },
+     {
+      "name": "rNum",
+      "type": "uint128",
+      "internalType": "uint128"
+     },
+     {
+      "name": "rDen",
+      "type": "uint128",
+      "internalType": "uint128"
+     },
+     {
+      "name": "slashPool",
+      "type": "uint128",
+      "internalType": "uint128"
+     }
+    ]
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "getBook",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "buys",
+    "type": "uint256[41]",
+    "internalType": "uint256[41]"
+   },
+   {
+    "name": "sells",
+    "type": "uint256[41]",
+    "internalType": "uint256[41]"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "getOrder",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "owner",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "tuple",
+    "internalType": "struct SealBatch.Order",
+    "components": [
+     {
+      "name": "commitHash",
+      "type": "bytes32",
+      "internalType": "bytes32"
+     },
+     {
+      "name": "lockedBase",
+      "type": "uint128",
+      "internalType": "uint128"
+     },
+     {
+      "name": "lockedQuote",
+      "type": "uint128",
+      "internalType": "uint128"
+     },
+     {
+      "name": "qty",
+      "type": "uint128",
+      "internalType": "uint128"
+     },
+     {
+      "name": "tick",
+      "type": "uint8",
+      "internalType": "uint8"
+     },
+     {
+      "name": "isBuy",
+      "type": "bool",
+      "internalType": "bool"
+     },
+     {
+      "name": "revealed",
+      "type": "bool",
+      "internalType": "bool"
+     },
+     {
+      "name": "claimed",
+      "type": "bool",
+      "internalType": "bool"
+     }
+    ]
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "lastFaucet",
+  "inputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "onboard",
+  "inputs": [
+   {
+    "name": "key",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "payable"
+ },
+ {
+  "type": "function",
+  "name": "phaseOf",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint8",
+    "internalType": "uint8"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "previewClaim",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "owner",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "baseOut",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "quoteOut",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "priceOf",
+  "inputs": [
+   {
+    "name": "tick",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "pure"
+ },
+ {
+  "type": "function",
+  "name": "quote",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "contract MockToken"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "reveal",
+  "inputs": [
+   {
+    "name": "owner",
+    "type": "address",
+    "internalType": "address"
+   },
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   },
+   {
+    "name": "isBuy",
+    "type": "bool",
+    "internalType": "bool"
+   },
+   {
+    "name": "qty",
+    "type": "uint128",
+    "internalType": "uint128"
+   },
+   {
+    "name": "tick",
+    "type": "uint8",
+    "internalType": "uint8"
+   },
+   {
+    "name": "salt",
+    "type": "bytes32",
+    "internalType": "bytes32"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "sessionKey",
+  "inputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [
+   {
+    "name": "",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "setSessionKey",
+  "inputs": [
+   {
+    "name": "key",
+    "type": "address",
+    "internalType": "address"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "payable"
+ },
+ {
+  "type": "function",
+  "name": "settle",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "function",
+  "name": "timeoutWindows",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "windowBlocks",
+  "inputs": [],
+  "outputs": [
+   {
+    "name": "",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "stateMutability": "view"
+ },
+ {
+  "type": "function",
+  "name": "withdraw",
+  "inputs": [
+   {
+    "name": "token",
+    "type": "address",
+    "internalType": "address"
+   },
+   {
+    "name": "amount",
+    "type": "uint256",
+    "internalType": "uint256"
+   }
+  ],
+  "outputs": [],
+  "stateMutability": "nonpayable"
+ },
+ {
+  "type": "event",
+  "name": "Cancelled",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "indexed": true,
+    "internalType": "uint256"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "Claimed",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "indexed": true,
+    "internalType": "uint256"
+   },
+   {
+    "name": "owner",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "baseOut",
+    "type": "uint256",
+    "indexed": false,
+    "internalType": "uint256"
+   },
+   {
+    "name": "quoteOut",
+    "type": "uint256",
+    "indexed": false,
+    "internalType": "uint256"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "Committed",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "indexed": true,
+    "internalType": "uint256"
+   },
+   {
+    "name": "owner",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "commitHash",
+    "type": "bytes32",
+    "indexed": false,
+    "internalType": "bytes32"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "Deposited",
+  "inputs": [
+   {
+    "name": "owner",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "token",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "amount",
+    "type": "uint256",
+    "indexed": false,
+    "internalType": "uint256"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "Revealed",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "indexed": true,
+    "internalType": "uint256"
+   },
+   {
+    "name": "owner",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "isBuy",
+    "type": "bool",
+    "indexed": false,
+    "internalType": "bool"
+   },
+   {
+    "name": "qty",
+    "type": "uint128",
+    "indexed": false,
+    "internalType": "uint128"
+   },
+   {
+    "name": "tick",
+    "type": "uint8",
+    "indexed": false,
+    "internalType": "uint8"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "SessionKeySet",
+  "inputs": [
+   {
+    "name": "owner",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "key",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "Settled",
+  "inputs": [
+   {
+    "name": "batchId",
+    "type": "uint256",
+    "indexed": true,
+    "internalType": "uint256"
+   },
+   {
+    "name": "priceTick",
+    "type": "uint8",
+    "indexed": false,
+    "internalType": "uint8"
+   },
+   {
+    "name": "volume",
+    "type": "uint128",
+    "indexed": false,
+    "internalType": "uint128"
+   },
+   {
+    "name": "rationedSide",
+    "type": "uint8",
+    "indexed": false,
+    "internalType": "uint8"
+   },
+   {
+    "name": "marginalTick",
+    "type": "uint8",
+    "indexed": false,
+    "internalType": "uint8"
+   },
+   {
+    "name": "rNum",
+    "type": "uint128",
+    "indexed": false,
+    "internalType": "uint128"
+   },
+   {
+    "name": "rDen",
+    "type": "uint128",
+    "indexed": false,
+    "internalType": "uint128"
+   },
+   {
+    "name": "slashPool",
+    "type": "uint128",
+    "indexed": false,
+    "internalType": "uint128"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "event",
+  "name": "Withdrawn",
+  "inputs": [
+   {
+    "name": "owner",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "token",
+    "type": "address",
+    "indexed": true,
+    "internalType": "address"
+   },
+   {
+    "name": "amount",
+    "type": "uint256",
+    "indexed": false,
+    "internalType": "uint256"
+   }
+  ],
+  "anonymous": false
+ },
+ {
+  "type": "error",
+  "name": "AlreadyClaimed",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "AlreadyCommitted",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "AlreadyRevealed",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "BadReveal",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "Cooldown",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "Insufficient",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "InsufficientLock",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "NoCommit",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "NotAuthorized",
+  "inputs": []
+ },
+ {
+  "type": "error",
+  "name": "WrongPhase",
+  "inputs": []
+ }
+]
