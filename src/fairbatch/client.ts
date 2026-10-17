@@ -17,18 +17,35 @@ export const getSecret=(d:Manifest,id:bigint,owner:Address)=>{try{return JSON.pa
 export function commitment(s:Secret){return keccak256(encodeAbiParameters([{type:'bytes32'},{type:'uint256'},{type:'address'},{type:'uint256'},{type:'address'},{type:'bool'},{type:'uint256'},{type:'uint256'},{type:'bytes32'}],[keccak256(stringToHex('FairBatch:v0.3')),BigInt(s.chainId),s.contract,BigInt(s.round),s.owner,s.isBuy,BigInt(s.lots),BigInt(s.ticks),s.salt]));}
 export function createBatch(d:Manifest){
  const chain=defineChain({id:d.chainId,name:d.network,nativeCurrency:{name:'MON',symbol:'MON',decimals:18},rpcUrls:{default:{http:[new URL(d.rpc,location.href).href]}},testnet:true});
- const c=createPublicClient({chain,transport:http(new URL(d.rpc,location.href).href,{retryCount:1}),pollingInterval:500});
- const read=(fn:string,args:any[]=[],blockNumber?:bigint)=>c.readContract({address:d.contract,abi:fairBatchAbi,functionName:fn as any,args:args as any,blockNumber}) as Promise<any>;
- async function write(w:any,fn:string,args:any[]=[],address=d.contract,abi:any=fairBatchAbi){const request={account:w.account,address,abi,functionName:fn,args};const [gas,nonce,gasPrice]=await Promise.all([c.estimateContractGas(request),c.getTransactionCount({address:w.account.address,blockTag:'pending'}),c.getGasPrice()]);const hash=w.account.type==='local'?await c.sendRawTransaction({serializedTransaction:await w.account.signTransaction({chainId:d.chainId,to:address,data:encodeFunctionData({abi,functionName:fn,args}),gas:gas*12n/10n,nonce,gasPrice,type:'legacy',value:0n})}):await w.writeContract({...request,gas:gas*12n/10n,...(d.chainId===10143?{type:'legacy',gasPrice}:{})});const receipt=await c.waitForTransactionReceipt({hash});if(receipt.status!=='success')throw Error('交易未执行，请重试');return hash;}
+ const rpcUrl=new URL(d.rpc,location.href).href;const c=createPublicClient({chain,transport:http(rpcUrl,{retryCount:1}),pollingInterval:500});const reader=createPublicClient({chain,transport:http(rpcUrl,{retryCount:0,batch:{batchSize:20,wait:0}}),pollingInterval:2000});
+ const read=(fn:string,args:any[]=[],blockNumber?:bigint)=>c.readContract({address:d.contract,abi:fairBatchAbi,functionName:fn as any,args:args as any,blockNumber}) as Promise<any>;const view=(fn:string,args:any[]=[])=>reader.readContract({address:d.contract,abi:fairBatchAbi,functionName:fn as any,args:args as any}) as Promise<any>;
+ async function write(w:any,fn:string,args:any[]=[],address=d.contract,abi:any=fairBatchAbi){const request={account:w.account,address,abi,functionName:fn,args};const [gas,nonce,gasPrice]=await Promise.all([c.estimateContractGas(request),c.getTransactionCount({address:w.account.address,blockTag:'pending'}),c.getGasPrice()]);const gasLimit=d.chainId===10143?gas*11n/10n:gas*12n/10n;const hash=w.account.type==='local'?await c.sendRawTransaction({serializedTransaction:await w.account.signTransaction({chainId:d.chainId,to:address,data:encodeFunctionData({abi,functionName:fn,args}),gas:gasLimit,nonce,gasPrice,type:'legacy',value:0n})}):await w.writeContract({...request,gas:gasLimit,...(d.chainId===10143?{type:'legacy',gasPrice}:{})});const receipt=await c.waitForTransactionReceipt({hash});if(receipt.status!=='success')throw Error('交易未执行，请重试');return hash;}
  async function api(action:string,body:any){const r=await fetch(`/api/fairbatch/${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,chainId:d.chainId,contract:d.contract}),signal:AbortSignal.timeout(25000)});const data=await r.json();if(!r.ok)throw Object.assign(Error(data.error||'服务暂不可用'),{serverRejected:r.status>=400&&r.status<500&&r.status!==429});return data.hash as Hex;}
- async function snapshot(selected?:bigint):Promise<Snapshot>{const block=await c.getBlock();const latest=await read('currentRound',[],block.number);const id=selected||latest;if(id===0n)return {...empty,block:block.number,time:block.timestamp};const[r,phase,orders]=await Promise.all([read('rounds',[id],block.number),read('phase',[id],block.number),read('getOrders',[id],block.number)]);return {id,latest,phase,orders,commitEnd:r[0],revealEnd:r[1],settleEnd:r[2],count:r[3],revealed:r[4],volume:r[6],price:r[7],low:r[8],high:r[9],block:block.number,time:block.timestamp};}
+ let seen=0n;void view('currentRound').then((id:bigint)=>{if(seen===0n)seen=id;}).catch(()=>{});
+ const pack=(block:any,latest:bigint,id:bigint,r:any,phase:number,orders:Order[]):Snapshot=>({id,latest,phase,orders,commitEnd:r[0],revealEnd:r[1],settleEnd:r[2],count:r[3],revealed:r[4],volume:r[6],price:r[7],low:r[8],high:r[9],block:block.number,time:block.timestamp});
+ async function snapshot(selected?:bigint):Promise<Snapshot>{
+  const hint=selected||seen;
+  if(hint===0n){const [block,latest]=await Promise.all([reader.getBlock(),view('currentRound')]);seen=latest;if(latest===0n)return {...empty,block:block.number,time:block.timestamp};const id=selected||latest;const [r,phase,orders]=await Promise.all([view('rounds',[id]),view('phase',[id]),view('getOrders',[id])]);return pack(block,latest,id,r,phase,orders);}
+  const [block,latest,r,phase,orders]=await Promise.all([reader.getBlock(),view('currentRound'),view('rounds',[hint]),view('phase',[hint]),view('getOrders',[hint])]);
+  seen=latest;const id=selected||latest;if(id===hint)return pack(block,latest,id,r,phase,orders);
+  const [r2,phase2,orders2]=await Promise.all([view('rounds',[id]),view('phase',[id]),view('getOrders',[id])]);return pack(block,latest,id,r2,phase2,orders2);
+ }
  function localWallet(){const keyName=`fairbatch:wallet:${d.chainId}`;let key=sessionStorage.getItem(keyName) as Hex|null;if(!key){key=generatePrivateKey();sessionStorage.setItem(keyName,key);}return createWalletClient({account:privateKeyToAccount(key),chain,transport:http(new URL(d.rpc,location.href).href)});}
  async function connect(){const provider=(window as any).ethereum;if(!provider)throw Error('未检测到钱包扩展，请使用测试钱包');const [address]=await provider.request({method:'eth_requestAccounts'});try{await provider.request({method:'wallet_switchEthereumChain',params:[{chainId:'0x'+d.chainId.toString(16)}]});}catch(e:any){if(e.code!==4902)throw e;await provider.request({method:'wallet_addEthereumChain',params:[{chainId:'0x'+d.chainId.toString(16),chainName:d.network,nativeCurrency:chain.nativeCurrency,rpcUrls:chain.rpcUrls.default.http}]});}return createWalletClient({account:address,chain,transport:custom(provider)});}
+ async function checkPrepared(w:any):Promise<boolean>{
+  try{
+   const checks=await Promise.all([d.base,d.quote].flatMap(address=>[
+    reader.readContract({address,abi:tokenAbi,functionName:'balanceOf',args:[w.account.address]}),
+    reader.readContract({address,abi:tokenAbi,functionName:'allowance',args:[w.account.address,d.contract]}),
+   ]));
+   return checks.every(v=>v>0n);
+  }catch{return false;}
+ }
  async function fund(w:any){
   const tasks=await Promise.all([d.base,d.quote].map(async address=>{
    const [balance,allowance]=await Promise.all([
-    c.readContract({address,abi:tokenAbi,functionName:'balanceOf',args:[w.account.address]}),
-    c.readContract({address,abi:tokenAbi,functionName:'allowance',args:[w.account.address,d.contract]}),
+    reader.readContract({address,abi:tokenAbi,functionName:'balanceOf',args:[w.account.address]}),
+    reader.readContract({address,abi:tokenAbi,functionName:'allowance',args:[w.account.address,d.contract]}),
    ]);return {address,mint:balance===0n,approve:allowance===0n};
   }));
   const gasUnits=tasks.reduce((n,t)=>n+(t.mint?110000n:0n)+(t.approve?65000n:0n),0n);
@@ -56,6 +73,6 @@ export function createBatch(d:Manifest){
   }
  }
  async function settle(w:any,id:bigint){const rows=await read('getOrders',[id]);return write(w,'settleWithWitness',[id,...witness(clearingInputs(rows))]);}
- return {d,c,read,write,api,snapshot,localWallet,connect,fund,commitOrder,settle};
+ return {d,c,read,write,api,snapshot,localWallet,connect,checkPrepared,fund,commitOrder,settle};
 }
 export type Batch=ReturnType<typeof createBatch>;

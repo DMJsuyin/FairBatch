@@ -1,0 +1,73 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import ganache from 'ganache';
+import {createPublicClient,createWalletClient,http,encodeDeployData,keccak256,toHex,type Hex} from 'viem';
+import {privateKeyToAccount,generatePrivateKey} from 'viem/accounts';
+import {testnet,transact} from '../scripts/chain.ts';
+import {fairBatchService} from '../scripts/fairbatch-service.ts';
+import {fairBatchAbi,tokenAbi} from '../src/abi.ts';
+import {intentDomain,intentTypes,referenceClear,clearingInputs} from '../src/fairbatch/protocol.ts';
+const token=JSON.parse(fs.readFileSync('artifacts/DemoToken.json','utf8'));
+const art=JSON.parse(fs.readFileSync('artifacts/FairBatch.json','utf8'));
+
+test('signed-wallet service on chain 10143: seed, restart, relay, permissionless clearing and refunds',async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'fairbatch-service-'));
+ const server=ganache.server({chain:{chainId:10143,hardfork:'shanghai'},logging:{quiet:true},miner:{blockTime:0.1},wallet:{totalAccounts:7}});
+ await server.listen(0,'127.0.0.1');
+ const rpc=`http://127.0.0.1:${(server.address() as any).port}`;
+ const keys=Object.values(server.provider.getInitialAccounts()).map(a=>a.secretKey as Hex);
+ const accounts=keys.map(key=>privateKeyToAccount(key));
+ const c=createPublicClient({chain:testnet,transport:http(rpc),pollingInterval:20});
+ const wallet=(i:number)=>createWalletClient({account:accounts[i],chain:testnet,transport:http(rpc)});
+ async function deploy(a:any,args:any[]){const gas=await c.estimateGas({account:accounts[0],data:encodeDeployData({...a,args})});const hash=await wallet(0).deployContract({...a,args,gas});return (await c.waitForTransactionReceipt({hash})).contractAddress!;}
+ const base=await deploy(token,['Base','B',18]),quote=await deploy(token,['Quote','Q',6]);
+ const contract=await deploy(art,[base,quote,60n,60n,120n]);
+ const read=(fn:string,args:any[]=[])=>c.readContract({address:contract,abi:fairBatchAbi,functionName:fn as any,args:args as any}) as Promise<any>;
+ for(let i=1;i<=5;i++)for(const address of [base,quote]){await transact(c,wallet(i),address,tokenAbi,'faucet');await transact(c,wallet(i),address,tokenAbi,'approve',[contract,2n**255n]);}
+ const manifest={chainId:10143,network:'Monad Testnet',rpc,base,quote,contract,deployBlock:0,relayer:true,counterparties:accounts.slice(1,5).map(a=>a.address)};
+ fs.writeFileSync(path.join(dir,'manifest.json'),JSON.stringify(manifest));
+ fs.writeFileSync(path.join(dir,'signer.json'),JSON.stringify({privateKey:keys[0]}));
+ fs.writeFileSync(path.join(dir,'bots.json'),JSON.stringify(keys.slice(1,5).map(privateKey=>({privateKey}))));
+ const options={manifestPath:path.join(dir,'manifest.json'),statePath:path.join(dir,'state.json'),intervalMs:0,env:{FAIRBATCH_RPC:rpc,FAIRBATCH_SIGNER_FILE:path.join(dir,'signer.json'),FAIRBATCH_BOTS_FILE:path.join(dir,'bots.json')}};
+ let svc=fairBatchService('http://unused.invalid',options);
+ t.after(async()=>{svc.close();await server.close();fs.rmSync(dir,{recursive:true,force:true});});
+ const methods:string[]=[];
+ // Reject development-only RPC even though the underlying test EVM supports it.
+ const request=server.provider.request.bind(server.provider);
+ server.provider.request=((args:any)=>{methods.push(args.method);if(['eth_accounts','evm_mine'].includes(args.method))throw Error('development RPC forbidden');return request(args);}) as any;
+ await svc.handle('open',{seed:true});await svc.handle('seed',{});
+ assert.equal((await read('getOrders',[1n])).length,4);
+ svc.close();svc=fairBatchService('http://unused.invalid',options);
+ await assert.rejects(svc.handle('settle',{round:'1',chainId:31337}),/网络已变更/);
+ const salt=keccak256(toHex('user credential'));
+ const commitment=await read('commitmentFor',[1n,accounts[5].address,true,500n,103n,salt]);
+ const r=await read('rounds',[1n]);
+ const intent={roundId:1n,owner:accounts[5].address,isBuy:true,commitment,escrow:8000000n,nonce:0n,deadline:r[0]-1n};
+ const signature=await wallet(5).signTypedData({domain:intentDomain(10143,contract),types:intentTypes,primaryType:'CommitIntent',message:intent});
+ const body=JSON.parse(JSON.stringify({round:'1',intent,signature},(_,v)=>typeof v==='bigint'?String(v):v));
+ await assert.rejects(svc.handle('commit',{...body,intent:{...body.intent,escrow:'9000000'}}));
+ await svc.handle('commit',body);
+ await assert.rejects(svc.handle('commit',body));
+ const warp=async(time:bigint)=>{await request({method:'evm_setTime',params:[Number(time)*1000]});await request({method:'evm_mine',params:[]});};
+ await warp(r[0]);await svc.tick();
+ await svc.handle('reveal',{round:'1',owner:accounts[5].address,lots:'500',ticks:'103',salt});
+ assert.equal((await read('getOrders',[1n])).filter((o:any)=>o.revealed).length,5);
+ await warp(r[1]);await svc.tick();
+ const rows=await read('getOrders',[1n]),cleared=await read('rounds',[1n]),reference=referenceClear(clearingInputs(rows));
+ assert.equal(cleared[7],reference.price);assert.equal(cleared[6],reference.volume);
+ assert.deepEqual(rows.map((o:any)=>o.fillLots),reference.fills);
+ assert.ok(rows.every((o:any)=>o.claimed));assert.equal(await read('baseLiability'),0n);assert.equal(await read('quoteLiability'),0n);
+ assert.equal(rows[4].baseDue,5n*10n**18n);assert.equal(rows[4].quoteDue,3n*10n**6n);
+ assert.ok(!methods.includes('eth_accounts')&&!methods.includes('evm_mine'));
+ const visitor=privateKeyToAccount(generatePrivateKey());await svc.handle('fund',{address:visitor.address});assert.ok(await c.getBalance({address:visitor.address})>0n);
+ await svc.handle('open',{seed:false});
+ // A third party can recover an expired order without the keeper or original signer.
+ await transact(c,wallet(5),contract,fairBatchAbi,'commit',[2n,true,await read('commitmentFor',[2n,accounts[5].address,true,10n,100n,salt]),100000n]);
+ const second=await read('rounds',[2n]);await warp(second[2]);
+ await transact(c,wallet(6),contract,fairBatchAbi,'claimFor',[2n,accounts[5].address]);
+ assert.equal((await read('getOrder',[2n,accounts[5].address])).claimed,true);
+ assert.equal(await read('quoteLiability'),0n);
+});

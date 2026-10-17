@@ -14,7 +14,7 @@ const rate=(key:string,limit:number)=>{const now=Date.now();let b=buckets.get(ke
 setInterval(()=>{const now=Date.now();for(const [k,v]of buckets)if(now-v.start>120000)buckets.delete(k);for(const [k,v]of funded)if(now-v>3600000)funded.delete(k);},60000).unref();
 const server=http.createServer(async(req,res)=>{
  res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','same-origin');res.setHeader('X-Frame-Options','SAMEORIGIN');
- const json=(status:number,data:any)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
+ const json=(status:number,data:any)=>{const payload=JSON.stringify(data);res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','Content-Length':Buffer.byteLength(payload)});res.end(payload);};
  try{
   const url=new URL(req.url||'/',origin);
   if(url.pathname==='/health'){json(200,{status:'ok',mode:'server-demo',chainId:await client.getChainId(),block:String(await client.getBlockNumber())});return;}
@@ -33,7 +33,8 @@ const server=http.createServer(async(req,res)=>{
     catch(e){json(e instanceof BatchServiceError?e.status:400,{error:(e as any).shortMessage||(e as Error).message});}return;
    }
    if(url.pathname==='/rpc'){
-    try{validateRpc(body,[d.base,d.quote,d.book,...(fairbatch.manifest()?[fairbatch.manifest()!.contract]:[])]);if(body.method==='eth_sendRawTransaction')rate(`${ip}:writes`,45);}catch(e){json(200,{jsonrpc:'2.0',id:body?.id??null,error:{code:-32601,message:(e as Error).message}});return;}
+    const calls=Array.isArray(body)?body:[body];
+    try{validateRpc(body,[d.base,d.quote,d.book,...(fairbatch.manifest()?[fairbatch.manifest()!.contract]:[])]);for(let i=1;i<calls.length;i++)rate(ip,1200);for(const call of calls)if(call.method==='eth_sendRawTransaction')rate(`${ip}:writes`,45);}catch(e){json(200,{jsonrpc:'2.0',id:Array.isArray(body)?(body[0]?.id??null):(body?.id??null),error:{code:-32601,message:(e as Error).message}});return;}
     const r=await fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});json(200,await r.json());return;
    }
    if(url.pathname==='/api/demo/fund'){
@@ -57,8 +58,8 @@ const server=http.createServer(async(req,res)=>{
   if(req.method!=='GET'&&req.method!=='HEAD'){json(405,{error:'Method not allowed'});return;}
   const root=path.resolve('dist'),relative=decodeURIComponent(url.pathname);let file=path.resolve(root,`.${relative}`);
   if(!file.startsWith(root+path.sep)){if(relative!=='/')throw new Error('Path denied');file=path.join(root,'index.html');}
-  if(!fs.existsSync(file)||fs.statSync(file).isDirectory())file=path.join(root,'index.html');
-  const type:Record<string,string>={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png'};
+  if(!fs.existsSync(file)||fs.statSync(file).isDirectory()){if(relative.startsWith('/assets/')||path.extname(relative)){json(404,{error:'Asset not found'});return;}file=path.join(root,'index.html');}
+  const type:Record<string,string>={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.gif':'image/gif'};
   res.setHeader('Content-Type',type[path.extname(file)]||'application/octet-stream');res.setHeader('Cache-Control',file.includes('/assets/')?'public, max-age=31536000, immutable':'no-cache');
   if(req.method==='HEAD'){res.end();return;}fs.createReadStream(file).pipe(res);
  }catch(e){json(400,{error:(e as Error).message});}

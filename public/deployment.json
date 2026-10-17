@@ -1,0 +1,13 @@
+{
+  "base": "0x0c26969189d173f433c6cde25f629cee3314797f",
+  "quote": "0xa1b0a8ab7674b84eab62b8966212fb1b091e60f8",
+  "book": "0xcf4e1bc1711bcc963529b7000ff42b998f5c7626",
+  "deployBlock": 3,
+  "chainId": 31337,
+  "rpc": "http://127.0.0.1:8545",
+  "demoAccount": "0x6855838a0cb7f8579060d56bb3d6a2d68b8407d9",
+  "arenaAccount": "0xf76c546dd6d2a03a52128c29443a346d4747e576",
+  "seedAccount": "0xb9e5e568986ef5c5ec4eb43e5977865999d86320",
+  "network": "Local EVM",
+  "createdAt": "2026-10-17T05:09:55.233Z"
+}

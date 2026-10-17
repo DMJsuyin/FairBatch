@@ -1,102 +1,97 @@
-> 新增 FairBatch 密封集合竞价：页面 `/fairbatch`，实现说明、算法、验证与启动命令见 [docs/FairBatch.md](docs/FairBatch.md)。原 CLOB 保留在 `/`。
+# FairBatch — Monad 密封集合竞价与全链意图网格双引擎终端
 
-# CLOB / Grid · Monad 链上网格交易终端
+> **线上实盘演示**：
+> - **机制 02 · FairBatch 密封统一清算价集合竞价（Monad Testnet 10143）**：https://clob.reallier.com/fairbatch
+> - **机制 01 · 全链连续限价订单簿 CLOB + AI 意图网格（对照终端）**：https://clob.reallier.com/
+> - **协议规范与路演底稿**：[docs/Protocol-v03.md](docs/Protocol-v03.md) ｜ **Monad 运维手册**：[docs/Monad-Runbook.md](docs/Monad-Runbook.md) ｜ **交付记录**：[docs/Release-20261017.md](docs/Release-20261017.md)
 
-Solidity 全链限价订单簿 + 单页交易终端 + 意图转网格。无登录，钱包签名，链上撮合和资金结算。面向 Monad 黑客松的交易应用。FairBatch 主产品运行于 Monad Testnet（10143）；CLOB 对照终端保留独立 Local EVM（31337）。
+FairBatch 是一套面向 **Monad (Chain ID: `10143`)** 构建的机构级全链交易与清算终端。项目在同一套单屏终端内提供 **「连续限价订单簿 (CLOB) + AI 意图原子网格」** 与 **「密封统一清算价集合竞价 (FairBatch v0.3)」** 双引擎同台对照，直击链上薄流动性市场中的 **PGA 排序抢跑（MEV Front-running）** 与 **高额链上排序 Gas 开销** 两大核心痛点。
 
-## 快速运行
+---
+
+## 一、 Monad Testnet (`10143`) 链上部署与公网实测证据
+
+| 证据项 | 链上详情 / 仓库核验路径 |
+|---|---|
+| **部署网络** | **Monad Testnet**（Chain ID: `10143`，RPC: `https://testnet-rpc.monad.xyz`） |
+| **FairBatch 核心合约** | `0x10886f059743e61585e4c762b459a9ecdcb61343`（配置见 [`public/fairbatch.json`](public/fairbatch.json)） |
+| **测试资产合约** | `dMON` (`0x6b272a040e55792b6c2276d2e5c1f639f401a387`) / `dUSDC` (`0x1b37fb22607c954dc793fa5ca38f48c0a89df743`) |
+| **公网第 4 轮用户委托承诺 Tx** | `0x6e590d7e5b1d21979af715c38bb63579019f3f3154061a70f98fba2e982fce2e`（Block `71758413`，EIP-712 委托密封下单，锁仓填充 8 dUSDC） |
+| **公网第 4 轮见证清算 Tx** | `0x547adcbc01fd86b35e62166b392bf22f7c1352750d175b98e4508f10f5f9f860`（Block `71758701`，`ClearingVerified`，统一价 `1.00 dUSDC`，成交 `16.00 dMON`） |
+| **链上资产守恒与独立复核** | [`docs/monad-public-verification.json`](docs/monad-public-verification.json)：5 笔订单全部到账 + 差价/超额锁仓精确退还，`baseLiability = 0`、`quoteLiability = 0`、`solvent = true` |
+| **Gas 压测对比报告** | [`docs/protocol-benchmark.json`](docs/protocol-benchmark.json)（由 [`scripts/fairbatch-benchmark.ts`](scripts/fairbatch-benchmark.ts) 实测生成） |
+| **自动化测试套件（35 项全通过）** | [`test/fairbatch.test.ts`](test/fairbatch.test.ts)、[`test/fairbatch-service.test.ts`](test/fairbatch-service.test.ts)、[`test/market.test.ts`](test/market.test.ts)、[`test/grid.test.ts`](test/grid.test.ts) 等共 8 个测试文件 |
+
+---
+
+## 二、 Why Monad：针对 Monad 底层执行与计费特性的原生设计
+
+本项目并非简单将以太坊合约迁移至 Monad RPC，而是针对 **Monad 异步执行、Gas 计费规则、状态访问定价及储备余额机制** 做了深度协议适配：
+
+1. **消除 Monad 默认 PGA（优先 Gas 拍卖）下的同块排序抢跑**：
+   - Monad 客户端默认按总 Gas 价格降序排列交易（Priority Gas Auction）。在 400ms 极速出块下，传统连续订单簿（CLOB）中同一组订单仅因入块顺序不同，成交价与买方归属就会发生剧烈偏移（见终端内置 6 种到达顺序 `3! = 6` 同屏对照实验）。
+   - **FairBatch 机制**：将报价收进固定窗口，通过 `keccak256("FairBatch:v0.3", chainId, contract, round, owner, isBuy, lots, ticks, salt)` 密封承诺与可选 2 的幂次锁仓填充（Escrow Padding）隐藏真实需求；揭示后按供需曲线最大交集手数 $V^*$ 与边际价格中点 $P^* = \lfloor(L + H)/2\rfloor$ 统一清算，**6 种到达顺序 100% 收敛至同一公平价格**。
+2. **适配 Monad「按 `gas_limit` 收费」与「冷存储 `SLOAD` 8,100 gas」成本结构（结算 Gas 降低 51.78%）**：
+   - Monad 因异步执行按交易设置的 **`gas_limit`（而非实际消耗 `gas_used`）** 收费，且冷存储访问（`8,100 gas`）是以太坊的近 4 倍、`ecRecover`（`6,000 gas`）为 2 倍。若在链上执行复杂的订单排序与冗余存储写入，会导致 `gas_limit` 膨胀，用户直接多付 MON。
+   - **v0.3 见证式清算 (`settleWithWitness`)**：将排序计算外包给无特权求解器，求解器仅提交 1 字节/单的紧凑索引字节串；合约在链上通过 **O(n) 位图（Bitmap）** 校验完整性（`seen == expected`，漏单/重单立即 Revert）、方向与单调性，并采用**最小持久化账本**（仅写成交量 `fillLots`，实时推导应收 base/quote）。
+   - **实测证据（[`docs/protocol-benchmark.json`](docs/protocol-benchmark.json)）**：32 笔逆序订单完整清算 Gas 从 v0.2 链上排序的 `2,566,288` 降至 v0.3 见证清算的 **`1,237,340`（节省 51.78%）**，纯计算阶段最高节省 **45.52%**；同时前端针对 Monad `10143` 将 `estimateGas` 安全缓冲严格收紧至 **`+10%`**，避免用户因虚高 `gas_limit` 多付费用。
+3. **兼容 Monad 10 MON Reserve Balance（储备余额限制）**：
+   - Monad 对余额低于 10 MON 的 EOA 限制每 3 个区块（约 1.2 秒）仅能发送 1 笔交易。
+   - 在 **CLOB 引擎** 中，用户通过自然语言/AI 生成 8 档网格后由 `batchPlaceOrders` / `replaceOrders` **单笔交易原子挂出**；在 **FairBatch 引擎** 中，用户通过 **EIP-712 (`CommitIntent`) 签名委托代发**（支持 EOA 与 ERC-1271 合约钱包），无需连续发送多笔交易即可完成整轮竞价与自动清算到账。
+
+---
+
+## 三、 核心架构与代码索引
+
+| 模块 | 关键源码路径 | 核心实现与验证 |
+|---|---|---|
+| **FairBatch 密封竞价合约** | [`contracts/FairBatch.sol`](contracts/FairBatch.sol)、[`contracts/BatchMath.sol`](contracts/BatchMath.sol) | Commit-Reveal、EIP-712 + ERC-1271 签名代发、O(n) 位图见证校验、双指针最大成交量 + 最大堆 Pro-Rata 余数分配、无许可超时自救 |
+| **CLOB 全链订单簿合约** | [`contracts/OrderBook.sol`](contracts/OrderBook.sol)、[`contracts/DemoToken.sol`](contracts/DemoToken.sol) | 价格-时间优先（FIFO）、Maker 价格成交与买方差价退还、Post-only / IOC / MinFill、原子批量挂单与替换 |
+| **前端双引擎交易终端** | [`src/App.tsx`](src/App.tsx)、[`src/fairbatch/App.tsx`](src/fairbatch/App.tsx)、[`src/components/`](src/components) | 100dvh 机构级单屏三栏终端、O(n log n) 供需阶梯曲线、6 种顺序同屏对照、恶意 Solver 漏单回滚实时验证、双算法浏览器独立复核 |
+| **独立参考清算与网格算法** | [`src/fairbatch/protocol.ts`](src/fairbatch/protocol.ts)、[`src/grid.ts`](src/grid.ts)、[`src/analytics.ts`](src/analytics.ts) | 浏览器独立离散价格枚举清算引擎（与合约双指针交叉复核）、确定性整数预算网格分配、FIFO 已实现盈亏计算 |
+| **Monad 签名服务与压测** | [`scripts/fairbatch-service.ts`](scripts/fairbatch-service.ts)、[`scripts/fairbatch-benchmark.ts`](scripts/fairbatch-benchmark.ts)、[`scripts/serve.ts`](scripts/serve.ts) | Monad Testnet 10143 真实私钥签名中继与 Keeper 自动揭示/清算、v0.2 vs v0.3 Gas 基准压测、DeepSeek Flash 意图解析代理与 RPC 安全白名单 |
+
+---
+
+## 四、 快速运行与独立复核
 
 需要 Node.js 22.12+（已用 Node 26 验证）。
 
 ```sh
+# 1. 安装依赖
 npm ci
-npm run local  # 保持运行：本地链、部署、测试资金与真实链上种子成交
-```
 
-另开终端：
+# 2. 编译合约并运行全部 35 项单元与集成测试（含全排列不变性穷举、恶意见证回滚、Chain 10143 签名闭环）
+npm test
 
-```sh
-npm run dev
-```
+# 3. 复现 v0.2 vs v0.3 见证清算 Gas 压测报告
+npm run fairbatch:benchmark
 
-打开 http://127.0.0.1:5177 ，点「使用测试钱包，开始交易」→「规则解析」→检查八档价格与数量→「签名并挂出」。在「我的挂单」撤单；「手动交易」支持限价和带价格保护的 IOC 吃单；「充值 / 提取」管理合约余额。Arena 每轮最多执行 20 笔真实本地交易，由规则驱动的对手盘提供成交。
+# 4. 独立复核 Monad Testnet (10143) 公网第 4 轮链上清算与偿付能力
+npm run fairbatch:verify -- docs/monad-public-verification.json
 
-```sh
-npm test       # 资金守恒、FIFO、部分成交、批量原子性、边界与网格约束
-npm run build  # TypeScript + 生产前端
-```
-
-## 已实现
-
-- 价格优先、同价 FIFO，maker 价格成交，买方差价退款。
-- 限价 / Post-only / IOC / 最低成交量；拒绝自成交。
-- 原子批量挂单、批量撤单、取消并替换整组订单。
-- 合约充值、提现；无管理员、无升级入口、无链下撮合依赖。
-- 10 档聚合深度、由 Trade 事件生成的 1 分钟 OHLC、逐笔成交及交易回执。
-- 确定性网格分配：价格步长、数量步长、买入预算、卖出库存与区间约束。
-- 自然语言规则解析，以及可选的兼容 Chat Completions 接口的大模型解析。两者明确区分。
-- 已配对买卖的 FIFO 收益，排除未知外部库存成本，未扣 Gas。
-
-## AI 配置（可选）
-
-复制 `.env.example` 为 `.env.local`，配置模型地址与名称，必要时填服务端密钥，重启开发服务器。页面点「AI 解析」。未配置时可使用规则解析。模型输出仍需经过范围校验、用户预览与钱包签名。密钥不进入前端构建。
-
-开发服务器与线上服务共用 `scripts/intent-model.ts`，均提供 `/api/intent`。Server 78 通过 systemd 的 `.local/intent-model.env` 读取 `LLM_BASE_URL`、`LLM_MODEL`、`LLM_API_KEY`，使用现有 DeepSeek 服务的 `deepseek-flash`；凭证只保留服务器。请求关闭思考、JSON 输出最多 512 token、30 秒超时；线上每 IP 每分钟最多 12 次、最多 4 个模型请求并发。模型响应经整数、区间和资金校验后才进入预览，失败不会伪装成 AI 成功或自动下单。合约交易不依赖模型。
-
-## Monad 测试网
-
-使用独立、已领取测试 MON 的部署钱包。在本机环境设置 `DEPLOYER_PRIVATE_KEY`，不要提交或粘贴私钥。可通过 `MONAD_RPC_URL` 指定 RPC。
-
-```sh
-npm run deploy:testnet
+# 5. 构建生产前端
 npm run build
 ```
 
-脚本会强制检查 chain ID **10143**，部署两种无价值测试币和订单簿，将公开地址写入 `deployments/monad-testnet.json` 与前端配置。连接浏览器钱包后领取测试代币、授权并充值即可下单。当前测试网脚本使用钱包签名；快捷测试钱包与 Arena 对手盘目前在 Local Testnet 提供。
+### 本地开发环境启动
 
-官方网络说明：https://docs.monad.xyz/developer-essentials/testnet
+```sh
+npm run local  # 终端 1：启动本地演示链、部署 CLOB 与 FairBatch 合约并注入初始种子深度
+npm run dev    # 终端 2：启动前端开发服务器 (http://127.0.0.1:5177)
+```
 
-## 实现边界与安全假设
+- 访问 `http://127.0.0.1:5177/fairbatch` 体验 **密封集合竞价 · FairBatch**；
+- 访问 `http://127.0.0.1:5177/` 体验 **连续订单簿 · AI 意图网格**。
 
-- 每个市场独立合约；同一市场仍有共享状态竞争。批量挂单是一笔原子交易，不代表 EVM 内部并行。
-- 原型每簿最多 128 笔有效挂单，批次最多 16 笔，每单最多匹配 32 个 maker。达到撮合上限的 GTC 回滚，IOC 释放余款。
-- 价格 tick 为 0.01 dUSDC / dMON，数量 lot 为 0.01 dMON。全部结算使用整数，限价和 lot 上限均为 1e9。
-- 只支持标准、精确转账且不 rebasing 的 ERC20。测试币 faucet 对任何人开放。
-- 网格为一次性批量挂单；成交后可重新生成并提交网格。卖单必须事先持有基础资产。价格档位不足时调整买卖层数，无法容纳全部层数则拒绝生成，不扩张指定区间。
-- 页面首次最多读取最近 5,000 个块的历史并标明截断；收益只代表所读取事件内可配对的成交。历史记录和账户完整收益需要后续归档索引。
-- Local Testnet 使用 Ganache，节点监听 127.0.0.1，经站点 RPC 提供交易能力。随机钱包和链状态在链服务重启后重置。前端静态构建不包含 Ganache。
+### 部署至 Monad Testnet (`10143`)
 
-## 目录与团队交接
+准备持有测试网 MON 的部署私钥（勿提交入库），执行：
 
-| 路径 | 内容 / 建议负责人 |
-|---|---|
-| `contracts/OrderBook.sol`、`scripts/` | 程序：合约、部署、钱包链路 |
-| `src/grid.ts`、`src/analytics.ts` | 大数据：参数分配、策略对照、成本与收益口径 |
-| `src/App.tsx`、`src/style.css` | 产品：单页终端、路演与可解释预览 |
-| `test/` | 资产守恒与机制边界验收 |
+```sh
+DEPLOYER_PRIVATE_KEY=0x... npm run fairbatch:deploy:testnet
+DEPLOYER_PRIVATE_KEY=0x... npm run deploy:testnet
+npm run build
+```
 
-参考机制与差异说明：链上订单簿、网格与反向补单已有先例，例如 https://docs.kuru.io/concepts/flip-orders 。本项目不主张首创 CLOB 或「绝不撞车」；关注可审查的意图约束、原子网格和链上演示证据。
-
-## Server 78 / Cloudflare 演示部署
-
-公开入口：`https://clob.reallier.com`。CLOB 对照终端连接 Local EVM（31337）；FairBatch 使用独立的 Monad Testnet（10143）合约与测试资产。链服务重启后重新部署；快捷钱包保存在当前浏览器会话中。
-
-访客点击「使用测试钱包，开始交易」，浏览器生成签名密钥，领取测试 Gas 并初始化测试资产；网格挂单、撮合和撤单均提交到该演示 EVM。AI 意图解析接入 DeepSeek Flash，规则解析仍可用；Arena 提供规则驱动的自动对手盘。
-
-部署路径 `/data/app-stacks/monad-clob-grid`，Node 22.12+。执行 `npm ci`、`npm run build`，按环境调整 `deploy/*.service` 后安装到 `/etc/systemd/system/`，执行 `systemctl daemon-reload && systemctl enable --now clob-chain clob-web`。服务用户需有项目目录写权限。
-
-- `clob-chain`：RPC 只监听 `127.0.0.1:8547`，启动时编译、部署、播种订单。
-- `clob-web`：私网 `192.168.39.78:5187`，提供静态页面、受限 `/rpc` 与演示领取/对手盘接口。
-- Cloudflare Tunnel：`clob.reallier.com` → `http://192.168.39.78:5187`，自动配置 DNS；不暴露 8547。
-- `/health` 返回实际演示链状态。`journalctl -u clob-chain -u clob-web` 查看日志。
-- 公共 RPC 禁用解锁账户交易及管理方法，只接受目标合约白名单内的客户端签名交易；请求有体积、Gas 和频率限制。钱包签名与提交交易可直接通过网页完成。
-- 停用：`systemctl disable --now clob-web clob-chain`，在 Cloudflare 删除本项目专用路由和 DNS。
-
-源码包不含私钥、环境密钥、node_modules、生成的部署地址或 Git 历史。未向 GitHub 发布。
-
-## FairBatch v0.3 协议升级
-
-算法、密码学、Gas 对比和五分钟讲解见 [技术机制与路演底稿](docs/Protocol-v03.md)。运行 `npm run fairbatch:benchmark` 可重新编译 v0.2 基线并比较完整清算/领取成本；`npm run fairbatch:verify -- docs/public-verification-v03.json` 可独立复核公网结果。
-
-
-FairBatch 的网络配置、重启恢复、钱包直连、端到端验收及图表/体验改动见 [Monad 运行手册](docs/Monad-Runbook.md)。
+脚本会强制校验 Chain ID **`10143`**，部署测试代币与核心合约，并输出公开清单与验证记录。详细运维与公网复现步骤见 [docs/Monad-Runbook.md](docs/Monad-Runbook.md) 与 [docs/Protocol-v03.md](docs/Protocol-v03.md)。

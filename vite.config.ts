@@ -1,7 +1,7 @@
 import {defineConfig,loadEnv} from 'vite';import react from '@vitejs/plugin-react';
-import {validateIntent} from './src/grid.ts';
+import {createIntentModel,IntentError} from './scripts/intent-model.ts';
 export default defineConfig(({mode})=>{
- const env=loadEnv(mode,process.cwd(),'');
+ const parseModelIntent=createIntentModel(loadEnv(mode,process.cwd(),''));
  return {plugins:[react(),{
   name:'optional-intent-model',
   configureServer(server){
@@ -11,19 +11,12 @@ export default defineConfig(({mode})=>{
       // Dev-only endpoint. No keys reach the client; it has no wallet or execution rights.
       const origin=req.headers.origin;
       if(origin&&!/^http:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin)){res.statusCode=403;res.end('{}');return;}
-      if(!env.LLM_BASE_URL||!env.LLM_MODEL){res.statusCode=503;res.end(JSON.stringify({error:'模型未配置。可使用标明来源的规则解析，或编辑网格参数。'}));return;}
       try {
-        let body='';for await(const chunk of req){body+=chunk;if(body.length>6000)throw new Error('输入过长');}
-        const {text,defaults}=JSON.parse(body);
-        if(typeof text!=='string'||text.length>2000)throw new Error('输入无效');
-        const fallback=validateIntent(defaults);
-        const response=await fetch(`${env.LLM_BASE_URL.replace(/\/$/,'')}/chat/completions`,{method:'POST',headers:{'Content-Type':'application/json',...(env.LLM_API_KEY?{Authorization:`Bearer ${env.LLM_API_KEY}`}:{})},signal:AbortSignal.timeout(30000),body:JSON.stringify({model:env.LLM_MODEL,temperature:0,response_format:{type:'json_object'},messages:[{role:'system',content:`Translate the user's trading intent to JSON only. Keys: levels (integer 2-16), rangeBps (integer 100-3000), budgetQuote (USDC buy budget), baseInventory (MON available to sell), bias (neutral|bullish|bearish). Never give profit forecasts or invent available funds. Omitted fields default to ${JSON.stringify(fallback)}. Reject non-grid requests with {"error":"unsupported intent"}.`},{role:'user',content:text}]})});
-        if(!response.ok)throw new Error(`模型服务返回 ${response.status}`);
-        const result=await response.json() as any;
-        const intent=validateIntent(JSON.parse(result.choices[0].message.content));
-        res.end(JSON.stringify({intent,source:`LLM · ${env.LLM_MODEL}`}));
-      }catch(error){res.statusCode=400;res.end(JSON.stringify({error:error instanceof Error?error.message:'解析失败'}));}
+        let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>10000)throw new IntentError(400,'输入过长');}
+        let body;try{body=JSON.parse(raw);}catch{throw new IntentError(400,'输入格式无效');}
+        res.end(JSON.stringify(await parseModelIntent(body)));
+      }catch(e){res.statusCode=e instanceof IntentError?e.status:500;res.end(JSON.stringify({error:e instanceof IntentError?e.message:'AI 解析暂时失败'}));}
     });
   }
- }],server:{host:'127.0.0.1',port:5177,strictPort:true,proxy:{'/api/fairbatch':{target:'http://127.0.0.1:5197',changeOrigin:true},'/api/demo/fund':{target:'http://127.0.0.1:5197',changeOrigin:true},'/rpc':{target:'http://127.0.0.1:5197',changeOrigin:true}}},build:{target:'es2022'}};
+ }],server:{host:'127.0.0.1',port:5177,strictPort:true,proxy:{'/api/fairbatch':{target:'http://127.0.0.1:5197',changeOrigin:true},'/api/demo/fund':{target:'http://127.0.0.1:5197',changeOrigin:true},'/api/demo/arena':{target:'http://127.0.0.1:5197',changeOrigin:true},'/deployment.json':{target:'http://127.0.0.1:5197',changeOrigin:true},'/fairbatch.json':{target:'http://127.0.0.1:5197',changeOrigin:true},'/health':{target:'http://127.0.0.1:5197',changeOrigin:true},'/rpc':{target:'http://127.0.0.1:5197',changeOrigin:true}}},build:{target:'es2022',rollupOptions:{output:{manualChunks(id){if(id.includes('node_modules/viem')||id.includes('node_modules/@noble')||id.includes('node_modules/ox'))return 'vendor-viem';if(id.includes('node_modules/react')||id.includes('node_modules/lucide-react'))return 'vendor-ui';}}}}};
 });

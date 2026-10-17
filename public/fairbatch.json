@@ -1,0 +1,18 @@
+{
+  "protocolVersion": "0.3",
+  "counterparties": [
+    "0xb9e5e568986ef5c5ec4eb43e5977865999d86320",
+    "0xf76c546dd6d2a03a52128c29443a346d4747e576",
+    "0xabb231f369f4e958802b48fd69e3b43caa795080",
+    "0xe1876273a3cb15c353f271c85e0db547e61e7d14"
+  ],
+  "chainId": 31337,
+  "network": "Local EVM",
+  "rpc": "/rpc",
+  "base": "0x0c26969189d173f433c6cde25f629cee3314797f",
+  "quote": "0xa1b0a8ab7674b84eab62b8966212fb1b091e60f8",
+  "contract": "0x2f22b6abb6971f23eba777cdeeb6a24191e7104e",
+  "deployBlock": 661,
+  "relayer": true,
+  "createdAt": "2026-10-17T06:08:38.446Z"
+}

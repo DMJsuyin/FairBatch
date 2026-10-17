@@ -10,6 +10,8 @@ Environment=PORT=5187
 Environment=HOST=192.168.39.78
 Environment=PUBLIC_ORIGIN=https://clob.reallier.com
 Environment=INTERNAL_RPC=http://127.0.0.1:8547
+EnvironmentFile=-/data/app-stacks/monad-clob-grid/.local/intent-model.env
+EnvironmentFile=-/data/app-stacks/monad-clob-grid/.local/fairbatch-runtime.env
 ExecStart=/usr/bin/node --import tsx scripts/serve.ts
 Restart=on-failure
 RestartSec=5

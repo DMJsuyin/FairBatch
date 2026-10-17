@@ -28,6 +28,9 @@ import {
 import MarketChart from './MarketChart';
 import Dialog from './Dialog';
 import DemoTour from './DemoTour';
+import AutoDemoDirector, {AutoDemoHeaderButton} from './AutoDemoDirector';
+import FairBatchApp from './fairbatch/App';
+import {Logo} from './Logo';
 import {terminalTour, type TourStep} from './tourSteps';
 import type {Address, Hash} from 'viem';
 import {
@@ -68,6 +71,13 @@ function levels(rows: readonly Entry[]): BookLevel[] {
 }
 
 export default function App() {
+  const [engine, setEngine] = useState<'clob' | 'fairbatch'>(() =>
+    typeof window !== 'undefined' &&
+    (window.location.pathname.startsWith('/fairbatch') ||
+      new URLSearchParams(window.location.search).get('mode') === 'fairbatch')
+      ? 'fairbatch'
+      : 'clob'
+  );
   const [market, setMarket] = useState<Market>();
   const [snapshot, setSnapshot] = useState<Snapshot>(zeroSnapshot);
   const [account, setAccount] = useState<Address>();
@@ -78,7 +88,7 @@ export default function App() {
   const [notice, setNotice] = useState('');
   const [txs, setTxs] = useState<Tx[]>([]);
   const [tab, setTab] = useState<'trade' | 'grid'>('grid');
-  const [bottom, setBottom] = useState<'orders' | 'fills' | 'receipts'>('orders');
+  const [bottom, setBottom] = useState<'orders' | 'fills' | 'receipts' | 'account'>('orders');
   const [side, setSide] = useState(true);
   const [kind, setKind] = useState<'limit' | 'ioc'>('limit');
   const [price, setPrice] = useState('1.00');
@@ -107,7 +117,7 @@ export default function App() {
   const mounted = useRef(true);
   const tourSnapshot = useRef<{
     tab: 'trade' | 'grid';
-    bottom: 'orders' | 'fills' | 'receipts';
+    bottom: 'orders' | 'fills' | 'receipts' | 'account';
     workspaceView: 'terminal' | 'grid' | 'history';
   } | null>(null);
 
@@ -149,10 +159,26 @@ export default function App() {
   }, [market, account]);
 
   useEffect(() => {
+    if (engine !== 'clob') return;
     void refresh();
-    const id = setInterval(() => void refresh(), 2500);
+    const id = setInterval(() => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        void refresh();
+      }
+    }, 2500);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refresh, engine]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      const isFb =
+        window.location.pathname.startsWith('/fairbatch') ||
+        new URLSearchParams(window.location.search).get('mode') === 'fairbatch';
+      setEngine(isFb ? 'fairbatch' : 'clob');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   useEffect(() => {
     const p = (window as any).ethereum;
@@ -536,17 +562,13 @@ export default function App() {
   const buyDepth = bids.reduce((sum, row) => sum + Number(row.lots), 0);
   const sellDepth = asks.reduce((sum, row) => sum + Number(row.lots), 0);
 
-  function navigate(view: 'terminal' | 'grid' | 'history') {
-    setWorkspaceView(view);
-    if (view === 'grid') {
-      setTab('grid');
-      document.getElementById('execution')?.scrollIntoView({behavior: 'smooth', block: 'nearest'});
-    } else if (view === 'history') {
-      setBottom('fills');
-      document.getElementById('activity')?.scrollIntoView({behavior: 'smooth', block: 'nearest'});
-    } else {
-      window.scrollTo({top: 0, behavior: 'smooth'});
+  function switchEngine(next: 'clob' | 'fairbatch', startTour?: boolean) {
+    const basePath = next === 'fairbatch' ? '/fairbatch' : '/';
+    const targetUrl = startTour ? `${basePath}?tour=1` : basePath;
+    if (window.location.pathname + window.location.search !== targetUrl) {
+      window.history.pushState({engine: next}, '', targetUrl);
     }
+    setEngine(next);
   }
 
   function handleTourStart() {
@@ -556,6 +578,25 @@ export default function App() {
     if (step.id === 'trade') setTab('trade');
     else if (step.id === 'grid') setTab('grid');
     else if (step.id === 'receipts') setBottom('receipts');
+  }
+  function handleTourAction(step: TourStep) {
+    if (step.id === 'book') {
+      if (bids[0]) setPrice((Number(bids[0].price) / 100).toFixed(2));
+      setTab('trade');
+    } else if (step.id === 'trade') {
+      setTab('trade');
+      setKind(k => (k === 'limit' ? 'ioc' : 'limit'));
+    } else if (step.id === 'grid') {
+      setTab('grid');
+      try {
+        setPreview(allocateGrid(intent, mid || 100n));
+        setIntentSource('导览演练 · 确定性 8 档分配');
+      } catch {
+        // ignore
+      }
+    } else if (step.id === 'receipts') {
+      switchEngine('fairbatch');
+    }
   }
   function handleTourFinish() {
     if (tourSnapshot.current) {
@@ -579,76 +620,159 @@ export default function App() {
     }
   }
 
+  useEffect(() => {
+    window.__CLOB_DEMO_BRIDGE__ = {
+      ensureDemoReady: async () => {
+        if (!account) {
+          await connect(true);
+        }
+      },
+      setTab: nextTab => setTab(nextTab),
+      setBottom: nextBottom => setBottom(nextBottom),
+      pickBookPrice: sideKey => {
+        const row = sideKey === 'bid' ? bids[0] : asks[0];
+        if (row) {
+          setPrice((Number(row.price) / 100).toFixed(2));
+        }
+      },
+      fillAndPreviewGrid: () => {
+        setTab('grid');
+        const sampleText =
+          '震荡偏多，±4% 区间铺 8 层网格，买入预算 500 USDC，卖出库存 300 MON。';
+        setIntentText(sampleText);
+        try {
+          const parsed = parseIntent(sampleText, intent);
+          setIntent(parsed);
+          setPreview(allocateGrid(parsed, mid || 100n));
+          setIntentSource('自动演练 · 确定性 8 档分配');
+        } catch {
+          // ignore
+        }
+      },
+      deployGridPreview: async () => {
+        if (!account) {
+          await connect(true);
+        }
+        if (preview) {
+          await deployGrid();
+        } else {
+          try {
+            const g = allocateGrid(intent, mid || 100n);
+            setPreview(g);
+            await action('批量挂单', async () => {
+              await write('网格挂单', 'batchPlaceOrders', [g.orders]);
+              setPreview(undefined);
+              setBottom('orders');
+            });
+          } catch {
+            // ignore
+          }
+        }
+      },
+      prepareIocTicket: () => {
+        setTab('trade');
+        setSide(true);
+        setKind('ioc');
+        const askTop = asks[0] ? (Number(asks[0].price) / 100).toFixed(2) : '1.02';
+        setPrice(askTop);
+        setQuantity('15');
+        setMinFill('5');
+      },
+      submitIocOrder: async () => {
+        if (!account) {
+          await connect(true);
+        }
+        await order();
+      },
+      pulseArenaOnce: async () => {
+        if (!market || market.d.chainId !== 31337) return;
+        try {
+          if (market.d.demoHosted) {
+            const r = await fetch('/api/demo/arena', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: '{}',
+            });
+            const data = await r.json();
+            if (r.ok && data.hash) {
+              setTxs(v =>
+                [
+                  {
+                    hash: data.hash,
+                    label: 'Arena 测试成交',
+                    status: 'success' as const,
+                    gas: data.gas,
+                  },
+                  ...v,
+                ].slice(0, 30)
+              );
+              await refresh();
+            }
+          }
+        } catch {
+          // ignore
+        }
+      },
+      refresh: async () => {
+        await refresh();
+      },
+    };
+    return () => {
+      delete window.__CLOB_DEMO_BRIDGE__;
+    };
+  });
+
+  if (engine === 'fairbatch') {
+    return (
+      <>
+        <FairBatchApp onSwitchEngine={switchEngine} />
+        <AutoDemoDirector engine={engine} onSwitchEngine={switchEngine} />
+      </>
+    );
+  }
+
   return (
+    <>
     <div className="app-shell">
       <a className="skip-link" href="#terminal">
         跳至交易终端工作区
       </a>
 
-      {/* Institutional Top Navigation Bar (TradingVane / VECTOR AppShell Standard) */}
+      {/* Unified Institutional Top Bar (44px) */}
       <header className="topbar">
         <div className="topbar-left">
-          <a className="brand-lockup" href="#terminal" aria-label="CLOB Grid 终端首页">
-            <span className="brand-badge">R</span>
+          <div className="brand-lockup">
+            <Logo />
             <div className="brand-text">
               <div className="brand-title">
-                CLOB<span>/</span>GRID
+                FairBatch
                 <em className="brand-tag">INSTITUTIONAL</em>
               </div>
-              <div className="brand-sub">MONAD 全链订单簿与确定性网格终端</div>
+              <div className="brand-sub">全链订单簿 · 意图网格 · 密封集合竞价一体化终端</div>
             </div>
-          </a>
+          </div>
 
           <nav className="mode-nav" aria-label="交易机制切换">
-            <a href="/" className="mode-link active" aria-current="page">
+            <button
+              type="button"
+              className="mode-link active"
+              aria-current="page"
+            >
               <span className="mode-idx">01</span>
               <span>连续订单簿 · 意图网格</span>
-            </a>
-            <a href="/fairbatch" className="mode-link">
+            </button>
+            <button
+              type="button"
+              className="mode-link"
+              onClick={() => switchEngine('fairbatch')}
+            >
               <span className="mode-idx">02</span>
-              <span>FairBatch · 密封集合竞价</span>
-            </a>
+              <span>密封集合竞价 · FairBatch</span>
+            </button>
           </nav>
-
-          <div className="section-jump" role="navigation" aria-label="工作区快捷定位">
-            <button
-              className={workspaceView === 'terminal' ? 'active' : ''}
-              onClick={() => navigate('terminal')}
-            >
-              <ChartNoAxesCombined size={13} />
-              <span>盘口与走势</span>
-            </button>
-            <button
-              className={workspaceView === 'grid' ? 'active' : ''}
-              onClick={() => navigate('grid')}
-            >
-              <SlidersHorizontal size={13} />
-              <span>策略执行</span>
-            </button>
-            <button
-              className={workspaceView === 'history' ? 'active' : ''}
-              onClick={() => navigate('history')}
-            >
-              <History size={13} />
-              <span>委托与回执</span>
-            </button>
-          </div>
         </div>
 
         <div className="header-right">
-          <DemoTour
-            name="CLOB / Grid"
-            steps={terminalTour}
-            dark
-            onStart={handleTourStart}
-            onStep={handleTourStep}
-            onFinish={handleTourFinish}
-            nextTour={{
-              href: '/fairbatch?tour=1',
-              label: '前往 FairBatch 密封集合竞价导览',
-            }}
-          />
-
           <div className="chain-telemetry" title="链上节点状态与最新同步区块">
             <i
               className={
@@ -683,16 +807,13 @@ export default function App() {
             <span>合约与机制</span>
           </button>
 
-          {account && (
-            <button
-              className="ghost-pill gold-outline"
-              disabled={!canTrade}
-              onClick={openFunding}
-            >
-              <ArrowLeftRight size={13} />
-              <span>充提 / 水龙头</span>
-            </button>
-          )}
+          <button
+            className="ghost-pill gold-outline"
+            onClick={() => (account ? openFunding() : setDialog('wallet'))}
+          >
+            <ArrowLeftRight size={13} />
+            <span>充提 / 水龙头</span>
+          </button>
 
           <button
             className={`wallet-button ${account ? 'connected' : ''}`}
@@ -704,13 +825,30 @@ export default function App() {
             <span>{account ? short(account) : '连接钱包'}</span>
             <ChevronRight size={12} />
           </button>
+
+          <AutoDemoHeaderButton />
+
+          <DemoTour
+            name="FairBatch"
+            steps={terminalTour}
+            dark
+            onStart={handleTourStart}
+            onStep={handleTourStep}
+            onAction={handleTourAction}
+            onFinish={handleTourFinish}
+            nextTour={{
+              href: '/?tour=1',
+              label: '切换至「密封集合竞价 · FairBatch」框选图解',
+              onClick: () => switchEngine('fairbatch', true),
+            }}
+          />
         </div>
       </header>
 
       <div className="page-content" id="terminal">
         {(bootError || syncError) && (
           <div className="error-banner" role="alert">
-            <Activity size={15} />
+            <Activity size={14} />
             <span>
               {bootError || syncError}
               {syncError && ' · 已暂停下单，正在自动重连节点。'}
@@ -721,7 +859,7 @@ export default function App() {
           </div>
         )}
 
-        {/* High-Density Institutional Market Ticker Strip */}
+        {/* Single-Line Market & Account Telemetry Strip (42px) */}
         <section className="market-strip" data-tour="market" aria-label="市场概览">
           <div className="pair-cell">
             <div className="token-badge">M</div>
@@ -732,12 +870,12 @@ export default function App() {
                 </h2>
                 <span className="instrument-tag">SPOT · CLOB</span>
               </div>
-              <small>PRICE-TIME PRIORITY · 0.01 TICK · ATOMIC BATCH</small>
+              <small>PRICE-TIME FIFO · 0.01 TICK</small>
             </div>
           </div>
 
           <div className="ticker-metric primary-price">
-            <small>最新成交价 (LAST)</small>
+            <small>最新成交 (LAST)</small>
             <strong className="buy">
               {last ? fmt(Number(last) / 100) : '—'}
               <span>dUSDC</span>
@@ -745,7 +883,7 @@ export default function App() {
           </div>
 
           <div className="ticker-metric">
-            <small>中间参考价 (MID)</small>
+            <small>中间参考 (MID)</small>
             <strong>
               {mid ? fmt(Number(mid) / 100) : '—'}
               <span>dUSDC</span>
@@ -762,7 +900,7 @@ export default function App() {
           </div>
 
           <div className="ticker-metric">
-            <small>买卖价差 (SPREAD)</small>
+            <small>价差 (SPREAD)</small>
             <strong>
               {spreadTicks !== null ? fmt(spreadTicks / 100) : '—'}
               {spreadBps && <span>({spreadBps} bps)</span>}
@@ -770,81 +908,77 @@ export default function App() {
           </div>
 
           <div className="ticker-metric">
-            <small>链上有效挂单 (ACTIVE)</small>
+            <small>有效挂单 (ACTIVE)</small>
             <strong>
               {snapshot.block ? snapshot.bids.length + snapshot.asks.length : '—'}
-              <span>/ 128 笔</span>
+              <span>/128</span>
             </strong>
           </div>
 
           <div className="ticker-metric volume-stat">
-            <small>{snapshot.partialHistory ? '近期链上成交量' : '累计链上成交量'}</small>
+            <small>{snapshot.partialHistory ? '近期成交量' : '累计成交量'}</small>
             <strong>
               {snapshot.block ? fmt(totalVolume) : '—'}
-              <span>dMON ({snapshot.fills.length} 笔)</span>
+              <span>dMON ({snapshot.fills.length})</span>
             </strong>
           </div>
 
-          <div className="ticker-status">
-            <button className="environment-note" onClick={() => setDialog('about')}>
-              <ShieldCheck size={13} />
-              <span>测试资产 · 链上实盘撮合</span>
-            </button>
+          <div className="ticker-account" data-tour="account">
+            <div className="ticker-acc-item">
+              <small>合约可用 (dUSDC / dMON)</small>
+              <strong>
+                {account
+                  ? `${fmt(amount(snapshot.quoteFree))} / ${fmt(
+                      amount(snapshot.baseFree, 18)
+                    )}`
+                  : '未连接账户'}
+              </strong>
+            </div>
+            <div className="ticker-acc-item">
+              <small>配对收益 (FIFO)</small>
+              <strong className={pnl.pnl >= 0n ? 'buy' : 'sell'}>
+                {account
+                  ? `${pnl.pnl > 0n ? '+' : ''}${fmt(amount(pnl.pnl), 2)}`
+                  : '—'}
+              </strong>
+            </div>
           </div>
         </section>
 
-        {/* Main 3-Column Institutional Terminal Grid */}
+        {/* Main 3-Column Single-Screen Institutional Grid */}
         <main className="terminal-layout">
           <div className="workspace">
             <div className="market-panels">
-              {/* Left-Center: Market Chart + Arena Engine */}
+              {/* Left-Center: Market Chart + Integrated Arena Header */}
               <section className="panel chart-panel" data-tour="chart">
                 <div className="panel-header">
                   <div className="tv-h">
                     <h2>市场成交走势 · MARKET CHART</h2>
                   </div>
-                  <span className="panel-meta">dMON / dUSDC · ON-CHAIN TRADE EVENTS</span>
+                  <div className="chart-header-actions">
+                    <span className="panel-meta">
+                      {snapshot.partialHistory ? '近期' : '累计'} {snapshot.fills.length} 笔链上 Trade
+                    </span>
+                    <button
+                      type="button"
+                      disabled={
+                        (!market?.d.arenaAccount && !market?.d.demoHosted) || !!syncError
+                      }
+                      className={`arena-inline-btn ${arena ? 'running' : ''}`}
+                      onClick={() => toggleArena()}
+                      title="由独立测试账户发起最多 20 笔真实链上 IOC 交替吃单"
+                    >
+                      {arena ? <Pause size={11} /> : <Play size={11} />}
+                      <span>
+                        {arena
+                          ? `停止 Arena (${arenaCount}/20)`
+                          : '启动 Arena 对手盘'}
+                      </span>
+                    </button>
+                  </div>
                 </div>
 
                 <MarketChart snapshot={snapshot} />
-
-                <div className="chart-footer">
-                  <span>
-                    <i className="dot" />
-                    数据源自链上 OrderBook 合约 Trade 事件，无预言机或中心化撮合插值
-                  </span>
-                  <span>
-                    {snapshot.partialHistory ? '近期窗口' : '部署以来'} {snapshot.fills.length} 笔成交
-                    <span className="separator">|</span>
-                    时区 {Intl.DateTimeFormat().resolvedOptions().timeZone}
-                  </span>
-                </div>
-
-                <div className="arena-bar">
-                  <div className="arena-icon">
-                    <Activity size={15} />
-                  </div>
-                  <div className="arena-copy">
-                    <div className="arena-title-row">
-                      <strong>Arena 自动对手盘引擎</strong>
-                      <span className="small-tag">REAL ON-CHAIN IOC</span>
-                      {arena && <span className="live-badge">运行中 {arenaCount}/20</span>}
-                    </div>
-                    <small>
-                      独立测试账户按规则交替发起 IOC 吃单（每轮最多 20 笔），实时驱动链上撮合与 K 线演进
-                    </small>
-                  </div>
-                  <button
-                    disabled={
-                      (!market?.d.arenaAccount && !market?.d.demoHosted) || !!syncError
-                    }
-                    className={arena ? 'outline-button danger-outline' : 'arena-button'}
-                    onClick={() => toggleArena()}
-                  >
-                    {arena ? <Pause size={13} /> : <Play size={13} />}
-                    <span>{arena ? `停止交易流 (${arenaCount}/20)` : '启动 Arena 交易流'}</span>
-                  </button>
-                </div>
               </section>
 
               {/* Center: L2 Order Book */}
@@ -979,12 +1113,12 @@ export default function App() {
               </section>
             </div>
 
-            {/* Bottom Ledger: Open Orders, Market Fills, Tx Receipts */}
+            {/* Bottom Multi-Tab Dock: Open Orders, Market Fills, Tx Receipts, Account Custody */}
             <section
               className="panel activity-panel"
               id="activity"
               data-tour="activity"
-              aria-label="交易记录"
+              aria-label="交易记录与资产"
             >
               <div className="panel-header tabs">
                 <div className="activity-tabs" role="tablist" aria-label="交易记录类型">
@@ -1016,6 +1150,14 @@ export default function App() {
                     <b>{txs.length}</b>
                     {txs.some(t => t.status === 'pending') && <i className="dot waiting" />}
                   </button>
+                  <button
+                    role="tab"
+                    aria-selected={bottom === 'account'}
+                    className={bottom === 'account' ? 'active' : ''}
+                    onClick={() => setBottom('account')}
+                  >
+                    <span>合约托管资产与盈亏 · ACCOUNT</span>
+                  </button>
                 </div>
 
                 {bottom === 'orders' && own.length > 0 && (
@@ -1043,10 +1185,43 @@ export default function App() {
                     ? '当前委托'
                     : bottom === 'fills'
                       ? '市场成交'
-                      : '交易回执'
+                      : bottom === 'receipts'
+                        ? '交易回执'
+                        : '合约账户资产'
                 }
               >
-                {bottom === 'orders' ? (
+                {bottom === 'account' ? (
+                  <div className="account-dock-grid">
+                    <div className="account-dock-card">
+                      <small>可用报价资产 (FREE dUSDC)</small>
+                      <strong>{account ? fmt(amount(snapshot.quoteFree)) : '—'}</strong>
+                      <span>挂单锁定 {account ? fmt(amount(quoteLocked)) : '—'} dUSDC</span>
+                    </div>
+                    <div className="account-dock-card">
+                      <small>可用基础资产 (FREE dMON)</small>
+                      <strong>{account ? fmt(amount(snapshot.baseFree, 18)) : '—'}</strong>
+                      <span>挂单锁定 {account ? fmt(amount(baseLocked, 18)) : '—'} dMON</span>
+                    </div>
+                    <div className="account-dock-card">
+                      <small>已配对实现收益 (FIFO PnL)</small>
+                      <strong className={pnl.pnl >= 0n ? 'buy' : 'sell'}>
+                        {account
+                          ? `${pnl.pnl > 0n ? '+' : ''}${fmt(amount(pnl.pnl), 4)} dUSDC`
+                          : '—'}
+                      </strong>
+                      <span>已平仓 {fmt(Number(pnl.closedLots) / 100)} dMON · 未计 Gas</span>
+                    </div>
+                    <div className="account-dock-card action-col">
+                      <button
+                        className="outline-button gold-outline"
+                        onClick={() => (account ? openFunding() : setDialog('wallet'))}
+                      >
+                        <ArrowLeftRight size={13} />
+                        <span>{account ? '合约充提 / 测试水龙头' : '连接钱包管理资产'}</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : bottom === 'orders' ? (
                   <table>
                     <thead>
                       <tr>
@@ -1204,93 +1379,46 @@ export default function App() {
                   </table>
                 )}
 
-                {((bottom === 'orders' && !own.length) ||
-                  (bottom === 'fills' && !snapshot.fills.length) ||
-                  (bottom === 'receipts' && !txs.length)) && (
-                  <div className="table-empty">
-                    <span className="empty-icon">
-                      {bottom === 'receipts' ? (
-                        <FileText size={18} />
-                      ) : (
-                        <Layers3 size={18} />
+                {bottom !== 'account' &&
+                  ((bottom === 'orders' && !own.length) ||
+                    (bottom === 'fills' && !snapshot.fills.length) ||
+                    (bottom === 'receipts' && !txs.length)) && (
+                    <div className="table-empty">
+                      <span className="empty-icon">
+                        {bottom === 'receipts' ? (
+                          <FileText size={16} />
+                        ) : (
+                          <Layers3 size={16} />
+                        )}
+                      </span>
+                      <strong>
+                        {bottom === 'orders'
+                          ? account
+                            ? '当前账户无活动挂单'
+                            : '未连接交易钱包'
+                          : bottom === 'fills'
+                            ? '等待订单簿首笔撮合成交'
+                            : '当前会话暂无链上交易回执'}
+                      </strong>
+                      <p>
+                        {bottom === 'orders'
+                          ? account
+                            ? '可在右侧通过「意图网格」一键原子挂出多档双边限价单，或手动提交单笔限价委托。'
+                            : '连接浏览器钱包或一键初始化测试账户（自动领币并授权存入合约），即可提交网格与限价单。'
+                          : bottom === 'fills'
+                            ? '可点击图表右上角「启动 Arena 对手盘」触发链上规则吃单。'
+                            : '每笔挂单、撤单、充提操作均会在此记录链上交易哈希与 Gas 消耗。'}
+                      </p>
+                      {bottom === 'orders' && !account && (
+                        <button
+                          className="outline-button gold-outline"
+                          onClick={() => setDialog('wallet')}
+                        >
+                          连接钱包或启用测试账户 <ArrowRight size={12} />
+                        </button>
                       )}
-                    </span>
-                    <strong>
-                      {bottom === 'orders'
-                        ? account
-                          ? '当前账户无活动挂单'
-                          : '未连接交易钱包'
-                        : bottom === 'fills'
-                          ? '等待订单簿首笔撮合成交'
-                          : '当前会话暂无链上交易回执'}
-                    </strong>
-                    <p>
-                      {bottom === 'orders'
-                        ? account
-                          ? '可在右侧通过「意图网格」一键原子挂出多档双边限价单，或手动提交单笔限价委托。'
-                          : '连接浏览器钱包或一键初始化测试钱包（自动领币并授权存入合约），即可提交网格与限价单。'
-                        : bottom === 'fills'
-                          ? '可点击上方「启动 Arena 交易流」触发链上规则对手盘，观察实时撮合。'
-                          : '每笔挂单、撤单、充提操作均会在此记录链上交易哈希与 Gas 消耗。'}
-                    </p>
-                    {bottom === 'orders' && !account && (
-                      <button
-                        className="outline-button gold-outline"
-                        onClick={() => setDialog('wallet')}
-                      >
-                        连接钱包或启用测试账户 <ArrowRight size={12} />
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* Account Custody & FIFO PnL Bar */}
-            <section
-              className="account-strip"
-              data-tour="account"
-              aria-label="账户概览"
-            >
-              <div className="account-label">
-                <div className="tv-h">
-                  <strong>合约账户资产 · ACCOUNT</strong>
-                </div>
-                <span>链上托管 · 随时提取</span>
-              </div>
-
-              <div className="account-cell">
-                <small>可用报价资产 (FREE dUSDC)</small>
-                <strong>{account ? fmt(amount(snapshot.quoteFree)) : '—'}</strong>
-                <span>挂单锁定 {account ? fmt(amount(quoteLocked)) : '—'} dUSDC</span>
-              </div>
-
-              <div className="account-cell">
-                <small>可用基础资产 (FREE dMON)</small>
-                <strong>{account ? fmt(amount(snapshot.baseFree, 18)) : '—'}</strong>
-                <span>挂单锁定 {account ? fmt(amount(baseLocked, 18)) : '—'} dMON</span>
-              </div>
-
-              <div className="account-cell">
-                <small>{snapshot.partialHistory ? '近期配对收益 (FIFO)' : '已配对实现收益 (FIFO PnL)'}</small>
-                <strong className={pnl.pnl >= 0n ? 'buy' : 'sell'}>
-                  {account
-                    ? `${pnl.pnl > 0n ? '+' : ''}${fmt(amount(pnl.pnl), 4)} dUSDC`
-                    : '—'}
-                </strong>
-                <span title="按 FIFO 配对买卖成交；未扣 Gas，不计外部转入资产成本。">
-                  已平仓 {fmt(Number(pnl.closedLots) / 100)} dMON · 未计 Gas
-                </span>
-              </div>
-
-              <div className="account-actions">
-                <button
-                  className="outline-button gold-outline"
-                  onClick={() => (account ? openFunding() : setDialog('wallet'))}
-                >
-                  <ArrowLeftRight size={13} />
-                  <span>{account ? '资金划转 / 水龙头' : '连接钱包管理资产'}</span>
-                </button>
+                    </div>
+                  )}
               </div>
             </section>
           </div>
@@ -1822,7 +1950,7 @@ export default function App() {
         <footer className="page-footer">
           <span>
             <i className="dot" />
-            CLOB / GRID INSTITUTIONAL TERMINAL
+            FAIRBATCH
             <span className="separator">|</span>
             全链价格时间优先撮合 (FIFO) · 演示环境测试资产无真实价值
           </span>
@@ -1968,8 +2096,8 @@ export default function App() {
         <Dialog title="合约架构与机制说明" onClose={() => setDialog(undefined)}>
           <div className="dialog-body">
             <div className="about-brand">
-              <span className="brand-badge">R</span>
-              <strong>CLOB / GRID</strong>
+              <Logo size={64} />
+              <strong>FairBatch</strong>
               <span>ON-CHAIN ENGINE</span>
             </div>
             <p className="about-intro">
@@ -2124,5 +2252,7 @@ export default function App() {
         </Dialog>
       )}
     </div>
+    <AutoDemoDirector engine={engine} onSwitchEngine={switchEngine} />
+    </>
   );
 }

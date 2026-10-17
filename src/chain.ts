@@ -12,15 +12,19 @@ export function createMarket(d:Deployment) {
  if(d.demoHosted)d={...d,rpc:new URL('/rpc',location.origin).href};
  if(d.chainId===31337&&!d.demoHosted&&!['127.0.0.1','localhost'].includes(new URL(d.rpc).hostname))throw new Error('本地钱包仅允许 loopback RPC');
  const chain=defineChain({id:d.chainId,name:d.network,nativeCurrency:{name:d.chainId===31337?'Test ETH':'MON',symbol:d.chainId===31337?'ETH':'MON',decimals:18},rpcUrls:{default:{http:[d.rpc]}},testnet:true});
- const client=createPublicClient({chain,transport:http(d.rpc),pollingInterval:600});
+ const client=createPublicClient({chain,transport:http(d.rpc,{batch:{batchSize:20,wait:0}}),pollingInterval:600});
  let cursor=BigInt(d.deployBlock),partialHistory=false;
  const fills=new Map<string,Fill>(),times=new Map<string,number>();
  const read=(functionName:'getBook'|'baseFree'|'quoteFree',args:any[],blockNumber?:bigint)=>client.readContract({address:d.book,abi:bookAbi,functionName,args:args as any,blockNumber});
- async function snapshot(account?:Address):Promise<Snapshot> {
-   if(await client.getChainId()!==d.chainId)throw new Error('RPC 网络与部署信息不一致');
+ let synced=false;
+  async function snapshot(account?:Address):Promise<Snapshot> {
    const block=await client.getBlockNumber({cacheTime:0});
-   if(block<BigInt(d.deployBlock))throw new Error('链已重置，请重启本地环境并刷新页面');
-   if(!await client.getBytecode({address:d.book,blockNumber:block}))throw new Error('当前地址没有合约，请重新部署');
+   if(!synced){
+    if(await client.getChainId()!==d.chainId)throw new Error('RPC 网络与部署信息不一致');
+    if(block<BigInt(d.deployBlock))throw new Error('链已重置，请重启本地环境并刷新页面');
+    if(!await client.getBytecode({address:d.book,blockNumber:block}))throw new Error('当前地址没有合约，请重新部署');
+    synced=true;
+   }else if(block<BigInt(d.deployBlock))throw new Error('链已重置，请重启本地环境并刷新页面');
    const [bids,asks,baseFree,quoteFree,baseWallet,quoteWallet]=await Promise.all([
     read('getBook',[true],block),read('getBook',[false],block),
     account?read('baseFree',[account],block):0n,account?read('quoteFree',[account],block):0n,
@@ -32,16 +36,16 @@ export function createMarket(d:Deployment) {
    if(block-from>5000n){from=block-5000n;partialHistory=true;}
    // Re-read the last two blocks and replace overlapping records for small reorgs.
    for(const [key,fill] of fills)if(fill.block>=from)fills.delete(key);
+   const fresh:any[]=[];
    while(from<=block){
-     const to=from+499n<block?from+499n:block;
-     const logs=await client.getLogs({address:d.book,event:event as any,fromBlock:from,toBlock:to});
-     for(const log of logs){
-       const args=(log as any).args;
-       const k=log.blockHash!;
-       if(!times.has(k))times.set(k,Number((await client.getBlock({blockHash:log.blockHash!})).timestamp));
-       fills.set(`${log.transactionHash}:${log.logIndex}`,{maker:args.maker,taker:args.taker,takerBuy:args.takerBuy,price:args.price,lots:args.lots,hash:log.transactionHash!,block:log.blockNumber!,time:times.get(k)!,index:log.logIndex!});
-     }
+     const to=from+4999n<block?from+4999n:block;
+     fresh.push(...await client.getLogs({address:d.book,event:event as any,fromBlock:from,toBlock:to}));
      from=to+1n;
+   }
+   await Promise.all([...new Set(fresh.map(log=>log.blockHash).filter((hash:string)=>hash&&!times.has(hash)))].map(async hash=>{times.set(hash,Number((await client.getBlock({blockHash:hash})).timestamp));}));
+   for(const log of fresh){
+     const args=(log as any).args;
+     fills.set(`${log.transactionHash}:${log.logIndex}`,{maker:args.maker,taker:args.taker,takerBuy:args.takerBuy,price:args.price,lots:args.lots,hash:log.transactionHash!,block:log.blockNumber!,time:times.get(log.blockHash)!,index:log.logIndex!});
    }
    cursor=block;
    return {block,bids:bids as Entry[],asks:asks as Entry[],baseFree:baseFree as bigint,quoteFree:quoteFree as bigint,baseWallet:baseWallet as bigint,quoteWallet:quoteWallet as bigint,fills:[...fills.values()].sort((a,b)=>a.block===b.block?a.index-b.index:a.block<b.block?-1:1),partialHistory};
@@ -52,7 +56,8 @@ export function createMarket(d:Deployment) {
    if(await wallet.getChainId()!==d.chainId)throw new Error(`请切换钱包到 ${d.network}`);
    const {request}=await client.simulateContract({account:wallet.account,address,abi,functionName,args});
    const gas=await client.estimateContractGas({account:wallet.account,address,abi,functionName,args});
-   const hash=await wallet.writeContract({...request,gas:gas*120n/100n});onHash(hash);
+   const gasLimit=d.chainId===10143?gas*110n/100n:gas*120n/100n;
+   const hash=await wallet.writeContract({...request,gas:gasLimit});onHash(hash);
    const receipt=await client.waitForTransactionReceipt({hash,timeout:120000});
    if(receipt.status!=='success')throw new Error('交易已上链但执行回滚');
    return receipt;

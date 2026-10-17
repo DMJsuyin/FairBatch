@@ -40,22 +40,27 @@ export function fairBatchService(localRpc:string,options:Options={}){
  async function seed(onlyIndex?:number){
   const {d}=context();const id=await read('currentRound');if(await read('phase',[id])!==1)return;
   track(id);
+  const existing=new Set((await read('getOrders',[id])).map((o:any)=>o.owner.toLowerCase()));
   const orders=[[true,800,103],[true,600,101],[false,700,97],[false,900,99]] as const;
   for(const [i,owner] of (d.counterparties||[]).slice(0,4).entries()){
    if(onlyIndex!==undefined&&i!==onlyIndex)continue;
-   if(await read('indexPlus',[id,owner])>0n)continue;
+   if(existing.has(owner.toLowerCase()))continue;
    const [buy,lots,ticks]=orders[i];
+   try{
    // Persist the preimage before broadcasting. A receipt timeout must never lose a reveal.
    let secret=state.secrets.find(s=>s.chainId===d.chainId&&s.contract.toLowerCase()===d.contract.toLowerCase()&&s.round===String(id)&&s.owner.toLowerCase()===owner.toLowerCase());
    if(!secret){secret={chainId:d.chainId,contract:d.contract,round:String(id),owner,lots:String(lots),ticks:String(ticks),salt:toHex(randomBytes(32))};state.secrets.push(secret);save();}
    const hash=keccak256(encodeAbiParameters([{type:'bytes32'},{type:'uint256'},{type:'address'},{type:'uint256'},{type:'address'},{type:'bool'},{type:'uint256'},{type:'uint256'},{type:'bytes32'}],[keccak256(stringToHex('FairBatch:v0.3')),BigInt(d.chainId),d.contract,id,owner,buy,BigInt(lots),BigInt(ticks),secret.salt]));
    const escrow=BigInt(lots)*(buy?BigInt(ticks)*100n:10n**16n);
    if(d.chainId===10143){
-    const bot=await context().wallet(owner),[round,nonce]=await Promise.all([read('rounds',[id]),read('nonces',[owner])]);
-    const intent={roundId:id,owner,isBuy:buy,commitment:hash,escrow,nonce,deadline:round[0]-1n};
+    const bot=await context().wallet(owner),[round,nonce,block]=await Promise.all([read('rounds',[id]),read('nonces',[owner]),context().client.getBlock()]);
+    const deadline=round[0]-1n;
+    if(block.timestamp>=deadline){lastError='对手盘播种赶不上提交窗口';continue;}
+    const intent={roundId:id,owner,isBuy:buy,commitment:hash,escrow,nonce,deadline};
     const signature=await bot.signTypedData({account:bot.account,domain:intentDomain(d.chainId,d.contract),types:intentTypes,primaryType:'CommitIntent',message:intent});
     await write('commitFor',[intent,signature]);
    }else await write('commit',[id,buy,hash,escrow],owner);
+   }catch(e){lastError=(e as Error).message.slice(0,180);console.error('FairBatch seed:',lastError);}
   }
  }
  async function seedWithoutBlockingUsers(){
@@ -66,14 +71,14 @@ export function fairBatchService(localRpc:string,options:Options={}){
  async function settle(id:bigint){return write('settleWithWitness',[id,...witness(clearingInputs(await read('getOrders',[id])))]);}
  async function processRound(id:bigint){
   const {d}=context();let p=await read('phase',[id]);
+  if(p===1&&id===await read('currentRound'))await seed();
   if(p===2){
+   const orders=await read('getOrders',[id]);
    for(const s of state.secrets.filter(s=>s.chainId===d.chainId&&s.contract.toLowerCase()===d.contract.toLowerCase()&&s.round===String(id))){
-    if(await read('indexPlus',[id,s.owner])===0n)continue;
-    const o=await read('getOrder',[id,s.owner]);
-    if(!o.revealed){
-     const expected=await read('commitmentFor',[id,s.owner,o.isBuy,BigInt(s.lots),BigInt(s.ticks),s.salt]);
-     if(expected.toLowerCase()===o.commitment.toLowerCase())await write('revealFor',[id,s.owner,BigInt(s.lots),BigInt(s.ticks),s.salt]);
-    }
+    const o=orders.find((x:any)=>x.owner.toLowerCase()===s.owner.toLowerCase());
+    if(!o||o.revealed)continue;
+    const expected=keccak256(encodeAbiParameters([{type:'bytes32'},{type:'uint256'},{type:'address'},{type:'uint256'},{type:'address'},{type:'bool'},{type:'uint256'},{type:'uint256'},{type:'bytes32'}],[keccak256(stringToHex('FairBatch:v0.3')),BigInt(d.chainId),d.contract,id,s.owner,o.isBuy,BigInt(s.lots),BigInt(s.ticks),s.salt]));
+    if(expected.toLowerCase()===o.commitment.toLowerCase())await write('revealFor',[id,s.owner,BigInt(s.lots),BigInt(s.ticks),s.salt]);
    }
   }
   p=await read('phase',[id]);
