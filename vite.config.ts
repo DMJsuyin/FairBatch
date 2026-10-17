@@ -25,5 +25,5 @@ export default defineConfig(({mode})=>{
       }catch(error){res.statusCode=400;res.end(JSON.stringify({error:error instanceof Error?error.message:'解析失败'}));}
     });
   }
- }],server:{host:'127.0.0.1',port:5177,strictPort:true,proxy:{'/api/fairbatch':{target:'http://127.0.0.1:5197',changeOrigin:true},'/api/demo/fund':{target:'http://127.0.0.1:5197',changeOrigin:true},'/rpc':{target:'http://127.0.0.1:5197',changeOrigin:true}}},build:{target:'es2022'}};
+ }],server:{host:'0.0.0.0',port:5177,strictPort:true,proxy:{'/api/fairbatch':{target:'http://127.0.0.1:5197',changeOrigin:true},'/api/demo/fund':{target:'http://127.0.0.1:5197',changeOrigin:true},'/rpc':{target:'http://127.0.0.1:5197',changeOrigin:true}}},build:{target:'es2022'}};
 });

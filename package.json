@@ -7,7 +7,7 @@
     "compile": "node --import tsx scripts/compile.ts",
     "test": "node --import tsx --test test/*.test.ts",
     "build": "tsc --noEmit && vite build",
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite --host 0.0.0.0",
     "local": "node --import tsx scripts/local.ts",
     "deploy:testnet": "node --import tsx scripts/deploy.ts",
     "check": "npm run compile && npm test && npm run build",
