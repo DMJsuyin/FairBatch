@@ -1,0 +1,43 @@
+{
+  "recordedAt": "2026-10-17T06:10:26.739037+00:00",
+  "fairbatchTests": {
+    "passed": 9,
+    "failed": 0,
+    "randomCases": 65,
+    "checks": "on-chain fallback and witness vs independent oracle; reverse permutation; malformed witnesses; signed field/domain/nonce/deadline attacks; ERC-1271; exact refunds and historical claims"
+  },
+  "regressionTests": {
+    "passed": 22,
+    "failed": 0,
+    "scope": "full suite including CLOB, grid and RPC; final scalar-entitlement refactor additionally covered by FairBatch 9-test rerun"
+  },
+  "sha256": {
+    "contracts/FairBatch.sol": "c31ec606f73414209ac387bb9f3dc94a206bbaf006f40b2e8418492dbc2e1193",
+    "contracts/BatchMath.sol": "46b4c50bb50f5ebc37ed540a5270c3dbd5abcc1d5297cf589c42a5cb1570f799",
+    "src/fairbatch/protocol.ts": "54af6f6c73f03addc270e8520bdf6f3525c06dd17af563961c0b4b4ecfe6b0c3",
+    "artifacts/FairBatch.json": "892850fe875a703cfab164cbdeaacd585098a31d638ee747a6ad10304fa88d7e",
+    "test/fairbatch.test.ts": "9bb29885ffce73d9d6d0cd9e4d371bd0c62427c7e799d9618e154e1808c31dd8"
+  },
+  "browserLocal": {
+    "signedCommit": "passed",
+    "paddedEscrow": "5.15 requirement mapped to 8 dUSDC",
+    "automaticReveal": "passed",
+    "omittedWitness": "contract rejected with incomplete witness"
+  },
+  "public": {
+    "site": "https://clob.reallier.com/fairbatch",
+    "chainId": 31337,
+    "contract": "0x6c79e58f893daba460823c54307baa45e998df19",
+    "round": 1,
+    "orders": 5,
+    "allClaimed": true,
+    "independentResultAndHashVerified": true,
+    "userReceived": "5 dMON + 3 dUSDC refund from 8 dUSDC padded escrow",
+    "mainAsset": "/assets/index-ClLvKhYc.js"
+  },
+  "linuxValidation": {
+    "node": "22.22.2",
+    "cleanNpmCi": "passed",
+    "compile": "passed; artifact SHA matches macOS"
+  }
+}

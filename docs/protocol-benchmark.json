@@ -1,0 +1,84 @@
+{
+  "generatedAt": "2026-10-17T06:09:00.224Z",
+  "environment": {
+    "chainId": 31337,
+    "evm": "Shanghai",
+    "compiler": "solc 0.8.30, viaIR, optimizer 200",
+    "measurement": "mined receipt gasUsed; baseline v0.2 sources included in test/fixtures/v02"
+  },
+  "scenarios": [
+    {
+      "name": "reverse-price-priority",
+      "orders": 8,
+      "baselineComputeGas": "68470",
+      "fallbackComputeGas": "69561",
+      "verifiedComputeGas": "65468",
+      "verifiedSavingsPercent": 4.38
+    },
+    {
+      "name": "marginal-pro-rata",
+      "orders": 8,
+      "baselineComputeGas": "69174",
+      "fallbackComputeGas": "75087",
+      "verifiedComputeGas": "72055",
+      "verifiedSavingsPercent": -4.16
+    },
+    {
+      "name": "reverse-price-priority",
+      "orders": 16,
+      "baselineComputeGas": "136859",
+      "fallbackComputeGas": "138128",
+      "verifiedComputeGas": "105741",
+      "verifiedSavingsPercent": 22.73
+    },
+    {
+      "name": "marginal-pro-rata",
+      "orders": 16,
+      "baselineComputeGas": "126588",
+      "fallbackComputeGas": "138358",
+      "verifiedComputeGas": "118958",
+      "verifiedSavingsPercent": 6.02
+    },
+    {
+      "name": "reverse-price-priority",
+      "orders": 32,
+      "baselineComputeGas": "342051",
+      "fallbackComputeGas": "343689",
+      "verifiedComputeGas": "186334",
+      "verifiedSavingsPercent": 45.52
+    },
+    {
+      "name": "marginal-pro-rata",
+      "orders": 32,
+      "baselineComputeGas": "271043",
+      "fallbackComputeGas": "294542",
+      "verifiedComputeGas": "211780",
+      "verifiedSavingsPercent": 21.86
+    }
+  ],
+  "fullSettlement32": [
+    {
+      "name": "v0.2",
+      "route": "on-chain sort",
+      "gas": "2566288",
+      "claimGas": "934863",
+      "settleAndClaimGas": "3501151"
+    },
+    {
+      "name": "v0.3",
+      "route": "on-chain sort",
+      "gas": "1394963",
+      "claimGas": "943401",
+      "settleAndClaimGas": "2338364"
+    },
+    {
+      "name": "v0.3",
+      "route": "verified witness",
+      "gas": "1237340",
+      "claimGas": "943401",
+      "settleAndClaimGas": "2180741"
+    }
+  ],
+  "fullSettlementSavingsPercent": 51.78,
+  "settleAndClaimSavingsPercent": 37.71
+}

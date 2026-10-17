@@ -1,0 +1,125 @@
+{
+  "observedAt": "2026-10-17T06:14:05.029Z",
+  "site": "https://clob.reallier.com",
+  "chainId": 31337,
+  "contract": "0x6c79e58f893daba460823c54307baa45e998df19",
+  "roundId": "1",
+  "phase": 4,
+  "commitEnd": "1792218292",
+  "revealEnd": "1792218352",
+  "settleEnd": "1792218472",
+  "volumeLots": "1600",
+  "priceTicks": "100",
+  "baseLiability": "0",
+  "quoteLiability": "0",
+  "baseBalance": "0",
+  "quoteBalance": "0",
+  "solvent": true,
+  "orders": [
+    {
+      "owner": "0x09820226B76E2d7B594886453543850eC415997A",
+      "isBuy": true,
+      "revealed": true,
+      "claimed": true,
+      "lots": "800",
+      "limitTicks": "103",
+      "commitment": "0x9aa6e95b10606c5ac57e2e2d461ef0a560b61c39bbf3bf4887c9d600d716fa07",
+      "escrow": "8240000",
+      "fillLots": "800",
+      "baseDue": "8000000000000000000",
+      "quoteDue": "240000"
+    },
+    {
+      "owner": "0xD05c245435d31723ce58f1cdef9A794284994CaC",
+      "isBuy": true,
+      "revealed": true,
+      "claimed": true,
+      "lots": "600",
+      "limitTicks": "101",
+      "commitment": "0xff991223a9f75bce536f2b014835e11f06c0e77bf895ff52e044a208731312b4",
+      "escrow": "6060000",
+      "fillLots": "300",
+      "baseDue": "3000000000000000000",
+      "quoteDue": "3060000"
+    },
+    {
+      "owner": "0x6fAE166450515D7177d69362c35e2A481Bb5eDB4",
+      "isBuy": false,
+      "revealed": true,
+      "claimed": true,
+      "lots": "700",
+      "limitTicks": "97",
+      "commitment": "0x3e9c4d88969a635841da39f7dc5bf9e249c6a75d723ab1b7514f81c855226cd8",
+      "escrow": "7000000000000000000",
+      "fillLots": "700",
+      "baseDue": "0",
+      "quoteDue": "7000000"
+    },
+    {
+      "owner": "0x625076e3F0930FE74A4feC6a1350d3A8686b77ee",
+      "isBuy": false,
+      "revealed": true,
+      "claimed": true,
+      "lots": "900",
+      "limitTicks": "99",
+      "commitment": "0x71ac61c8d65c54baa4385766ff24a8504efcf464d51ed9ad3db651b6fb7892ba",
+      "escrow": "9000000000000000000",
+      "fillLots": "900",
+      "baseDue": "0",
+      "quoteDue": "9000000"
+    },
+    {
+      "owner": "0xb87B3F4250B2096872545191eAA6024763685320",
+      "isBuy": true,
+      "revealed": true,
+      "claimed": true,
+      "lots": "500",
+      "limitTicks": "103",
+      "commitment": "0xa4809186c039a9ec0f56b5904054c0093c966adffc6361284eef40327d6e6b8d",
+      "escrow": "8000000",
+      "fillLots": "500",
+      "baseDue": "5000000000000000000",
+      "quoteDue": "3000000"
+    }
+  ],
+  "independentClearingVerified": true,
+  "independent": {
+    "volume": "1600",
+    "price": "100",
+    "low": "99",
+    "high": "101",
+    "fills": [
+      "800",
+      "300",
+      "700",
+      "900",
+      "500"
+    ]
+  },
+  "resultHashVerified": true,
+  "events": [
+    {
+      "event": "IntentExecuted",
+      "args": {
+        "roundId": "1",
+        "owner": "0xb87B3F4250B2096872545191eAA6024763685320",
+        "relayer": "0x625076e3F0930FE74A4feC6a1350d3A8686b77ee",
+        "nonce": "0",
+        "digest": "0xf07649adb25cdc1d89b91841359aa3417aed8fec101c06960060c53e793aadf4"
+      },
+      "transactionHash": "0x5b6e6fe3b6c66328a9da03b042399f39e525dc4cb26516c7ba10af18feceb290",
+      "blockNumber": "532"
+    },
+    {
+      "event": "ClearingVerified",
+      "args": {
+        "roundId": "1",
+        "solver": "0x625076e3F0930FE74A4feC6a1350d3A8686b77ee",
+        "usedWitness": true,
+        "resultHash": "0xc425b313153b054facc7b503465ec202842650bda054a821b44ba9e79563e627"
+      },
+      "transactionHash": "0x05520851585cf0d5ee17c876edbab34224325f1d6ce2a0a886a452b07a957fb4",
+      "blockNumber": "575"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+[Unit]
+Description=CLOB web terminal and restricted demo RPC
+After=network.target clob-chain.service
+Wants=clob-chain.service
+[Service]
+User=reallier
+Group=reallier
+WorkingDirectory=/data/app-stacks/monad-clob-grid
+Environment=PORT=5187
+Environment=HOST=192.168.39.78
+Environment=PUBLIC_ORIGIN=https://clob.reallier.com
+Environment=INTERNAL_RPC=http://127.0.0.1:8547
+ExecStart=/usr/bin/node --import tsx scripts/serve.ts
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+[Unit]
+Description=CLOB isolated demo EVM
+After=network.target
+[Service]
+User=reallier
+Group=reallier
+WorkingDirectory=/data/app-stacks/monad-clob-grid
+Environment=RPC_PORT=8547
+ExecStart=/usr/bin/node --import tsx scripts/local.ts
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target

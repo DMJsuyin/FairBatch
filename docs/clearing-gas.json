@@ -1,0 +1,7 @@
+{
+  "chainId": 31337,
+  "compiler": "solc 0.8.30, viaIR, optimizer 200",
+  "scenario": "32 orders, equal prices, maximum lots and ticks",
+  "computeGas": "159558",
+  "note": "Pure clearing including calldata; not full settle storage gas."
+}

@@ -1,0 +1,571 @@
+{
+  "status": "passed",
+  "seed": 20261017,
+  "randomCases": 10000,
+  "permutationComparisons": 30000,
+  "checks": [
+    "independent exhaustive integer-price oracle",
+    "base/quote conservation",
+    "limit prices",
+    "price priority",
+    "unrevealed exclusion",
+    "quantity bounds",
+    "permutation invariance",
+    "largest remainder example",
+    "unfilled quote example",
+    "same-price split price/volume",
+    "32 orders at maximum input magnitude"
+  ],
+  "scope": "Python clearing model only; no Solidity, phase transitions, gas or deployed contract validation",
+  "examples": {
+    "normal": {
+      "orders": [
+        {
+          "owner": "0x0000000000000000000000000000000000000001",
+          "buy": true,
+          "lots": 200,
+          "price": 1100,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000002",
+          "buy": true,
+          "lots": 100,
+          "price": 1000,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000003",
+          "buy": false,
+          "lots": 200,
+          "price": 900,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000004",
+          "buy": false,
+          "lots": 100,
+          "price": 1000,
+          "revealed": true
+        }
+      ],
+      "result": {
+        "priceTicks": 1000,
+        "volumeLots": 300,
+        "lowTicks": 1000,
+        "highTicks": 1000,
+        "payouts": {
+          "0x0000000000000000000000000000000000000001": {
+            "fillLots": 200,
+            "baseLots": 200,
+            "quoteRaw": 2000000
+          },
+          "0x0000000000000000000000000000000000000002": {
+            "fillLots": 100,
+            "baseLots": 100,
+            "quoteRaw": 0
+          },
+          "0x0000000000000000000000000000000000000003": {
+            "fillLots": 200,
+            "baseLots": 0,
+            "quoteRaw": 20000000
+          },
+          "0x0000000000000000000000000000000000000004": {
+            "fillLots": 100,
+            "baseLots": 0,
+            "quoteRaw": 10000000
+          }
+        }
+      }
+    },
+    "partial": {
+      "orders": [
+        {
+          "owner": "0x0000000000000000000000000000000000000001",
+          "buy": true,
+          "lots": 300,
+          "price": 1100,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000002",
+          "buy": true,
+          "lots": 100,
+          "price": 1100,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000003",
+          "buy": false,
+          "lots": 200,
+          "price": 900,
+          "revealed": true
+        }
+      ],
+      "result": {
+        "priceTicks": 1000,
+        "volumeLots": 200,
+        "lowTicks": 900,
+        "highTicks": 1100,
+        "payouts": {
+          "0x0000000000000000000000000000000000000001": {
+            "fillLots": 150,
+            "baseLots": 150,
+            "quoteRaw": 18000000
+          },
+          "0x0000000000000000000000000000000000000002": {
+            "fillLots": 50,
+            "baseLots": 50,
+            "quoteRaw": 6000000
+          },
+          "0x0000000000000000000000000000000000000003": {
+            "fillLots": 200,
+            "baseLots": 0,
+            "quoteRaw": 20000000
+          }
+        }
+      }
+    },
+    "rounding": {
+      "orders": [
+        {
+          "owner": "0x0000000000000000000000000000000000000001",
+          "buy": true,
+          "lots": 3,
+          "price": 1100,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000002",
+          "buy": true,
+          "lots": 2,
+          "price": 1100,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000003",
+          "buy": false,
+          "lots": 2,
+          "price": 900,
+          "revealed": true
+        }
+      ],
+      "result": {
+        "priceTicks": 1000,
+        "volumeLots": 2,
+        "lowTicks": 900,
+        "highTicks": 1100,
+        "payouts": {
+          "0x0000000000000000000000000000000000000001": {
+            "fillLots": 1,
+            "baseLots": 1,
+            "quoteRaw": 230000
+          },
+          "0x0000000000000000000000000000000000000002": {
+            "fillLots": 1,
+            "baseLots": 1,
+            "quoteRaw": 120000
+          },
+          "0x0000000000000000000000000000000000000003": {
+            "fillLots": 2,
+            "baseLots": 0,
+            "quoteRaw": 200000
+          }
+        }
+      }
+    },
+    "no_cross": {
+      "orders": [
+        {
+          "owner": "0x0000000000000000000000000000000000000001",
+          "buy": true,
+          "lots": 100,
+          "price": 900,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000002",
+          "buy": false,
+          "lots": 100,
+          "price": 1100,
+          "revealed": true
+        }
+      ],
+      "result": {
+        "priceTicks": null,
+        "volumeLots": 0,
+        "lowTicks": null,
+        "highTicks": null,
+        "payouts": {
+          "0x0000000000000000000000000000000000000001": {
+            "fillLots": 0,
+            "baseLots": 0,
+            "quoteRaw": 9000000
+          },
+          "0x0000000000000000000000000000000000000002": {
+            "fillLots": 0,
+            "baseLots": 100,
+            "quoteRaw": 0
+          }
+        }
+      }
+    },
+    "withheld": {
+      "orders": [
+        {
+          "owner": "0x0000000000000000000000000000000000000001",
+          "buy": true,
+          "lots": 300,
+          "price": 1100,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000002",
+          "buy": false,
+          "lots": 200,
+          "price": 900,
+          "revealed": false
+        }
+      ],
+      "result": {
+        "priceTicks": null,
+        "volumeLots": 0,
+        "lowTicks": null,
+        "highTicks": null,
+        "payouts": {
+          "0x0000000000000000000000000000000000000001": {
+            "fillLots": 0,
+            "baseLots": 0,
+            "quoteRaw": 33000000
+          },
+          "0x0000000000000000000000000000000000000002": {
+            "fillLots": 0,
+            "baseLots": 200,
+            "quoteRaw": 0
+          }
+        }
+      }
+    },
+    "plateau": {
+      "orders": [
+        {
+          "owner": "0x0000000000000000000000000000000000000001",
+          "buy": true,
+          "lots": 1000,
+          "price": 1100,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000002",
+          "buy": false,
+          "lots": 1000,
+          "price": 1000,
+          "revealed": true
+        }
+      ],
+      "result": {
+        "priceTicks": 1050,
+        "volumeLots": 1000,
+        "lowTicks": 1000,
+        "highTicks": 1100,
+        "payouts": {
+          "0x0000000000000000000000000000000000000001": {
+            "fillLots": 1000,
+            "baseLots": 1000,
+            "quoteRaw": 5000000
+          },
+          "0x0000000000000000000000000000000000000002": {
+            "fillLots": 1000,
+            "baseLots": 0,
+            "quoteRaw": 105000000
+          }
+        }
+      }
+    },
+    "unfilled_quote": {
+      "orders": [
+        {
+          "owner": "0x0000000000000000000000000000000000000001",
+          "buy": true,
+          "lots": 1000,
+          "price": 1100,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000002",
+          "buy": false,
+          "lots": 1000,
+          "price": 1000,
+          "revealed": true
+        },
+        {
+          "owner": "0x0000000000000000000000000000000000000003",
+          "buy": true,
+          "lots": 100,
+          "price": 1040,
+          "revealed": true
+        }
+      ],
+      "result": {
+        "priceTicks": 1050,
+        "volumeLots": 1000,
+        "lowTicks": 1000,
+        "highTicks": 1100,
+        "payouts": {
+          "0x0000000000000000000000000000000000000001": {
+            "fillLots": 1000,
+            "baseLots": 1000,
+            "quoteRaw": 5000000
+          },
+          "0x0000000000000000000000000000000000000002": {
+            "fillLots": 1000,
+            "baseLots": 0,
+            "quoteRaw": 105000000
+          },
+          "0x0000000000000000000000000000000000000003": {
+            "fillLots": 0,
+            "baseLots": 0,
+            "quoteRaw": 10400000
+          }
+        }
+      }
+    }
+  },
+  "comparisonDemo": {
+    "scope": "Mechanism comparison on constructed identical input; not a live exchange benchmark",
+    "orders": [
+      {
+        "owner": "0x0000000000000000000000000000000000000001",
+        "buy": true,
+        "lots": 300,
+        "price": 1100,
+        "revealed": true
+      },
+      {
+        "owner": "0x0000000000000000000000000000000000000002",
+        "buy": true,
+        "lots": 100,
+        "price": 1100,
+        "revealed": true
+      },
+      {
+        "owner": "0x0000000000000000000000000000000000000003",
+        "buy": false,
+        "lots": 200,
+        "price": 900,
+        "revealed": true
+      }
+    ],
+    "fairBatch": {
+      "priceTicks": 1000,
+      "volumeLots": 200,
+      "lowTicks": 900,
+      "highTicks": 1100,
+      "payouts": {
+        "0x0000000000000000000000000000000000000001": {
+          "fillLots": 150,
+          "baseLots": 150,
+          "quoteRaw": 18000000
+        },
+        "0x0000000000000000000000000000000000000002": {
+          "fillLots": 50,
+          "baseLots": 50,
+          "quoteRaw": 6000000
+        },
+        "0x0000000000000000000000000000000000000003": {
+          "fillLots": 200,
+          "baseLots": 0,
+          "quoteRaw": 20000000
+        }
+      }
+    },
+    "permutations": [
+      {
+        "arrivalOrder": [
+          1,
+          2,
+          3
+        ],
+        "continuousBook": {
+          "trades": [
+            {
+              "lots": 200,
+              "priceTicks": 1100
+            }
+          ],
+          "fills": {
+            "0x0000000000000000000000000000000000000001": {
+              "fillLots": 200,
+              "quoteTradedRaw": 22000000
+            },
+            "0x0000000000000000000000000000000000000002": {
+              "fillLots": 0,
+              "quoteTradedRaw": 0
+            },
+            "0x0000000000000000000000000000000000000003": {
+              "fillLots": 200,
+              "quoteTradedRaw": 22000000
+            }
+          }
+        }
+      },
+      {
+        "arrivalOrder": [
+          1,
+          3,
+          2
+        ],
+        "continuousBook": {
+          "trades": [
+            {
+              "lots": 200,
+              "priceTicks": 1100
+            }
+          ],
+          "fills": {
+            "0x0000000000000000000000000000000000000001": {
+              "fillLots": 200,
+              "quoteTradedRaw": 22000000
+            },
+            "0x0000000000000000000000000000000000000003": {
+              "fillLots": 200,
+              "quoteTradedRaw": 22000000
+            },
+            "0x0000000000000000000000000000000000000002": {
+              "fillLots": 0,
+              "quoteTradedRaw": 0
+            }
+          }
+        }
+      },
+      {
+        "arrivalOrder": [
+          2,
+          1,
+          3
+        ],
+        "continuousBook": {
+          "trades": [
+            {
+              "lots": 100,
+              "priceTicks": 1100
+            },
+            {
+              "lots": 100,
+              "priceTicks": 1100
+            }
+          ],
+          "fills": {
+            "0x0000000000000000000000000000000000000002": {
+              "fillLots": 100,
+              "quoteTradedRaw": 11000000
+            },
+            "0x0000000000000000000000000000000000000001": {
+              "fillLots": 100,
+              "quoteTradedRaw": 11000000
+            },
+            "0x0000000000000000000000000000000000000003": {
+              "fillLots": 200,
+              "quoteTradedRaw": 22000000
+            }
+          }
+        }
+      },
+      {
+        "arrivalOrder": [
+          2,
+          3,
+          1
+        ],
+        "continuousBook": {
+          "trades": [
+            {
+              "lots": 100,
+              "priceTicks": 1100
+            },
+            {
+              "lots": 100,
+              "priceTicks": 900
+            }
+          ],
+          "fills": {
+            "0x0000000000000000000000000000000000000002": {
+              "fillLots": 100,
+              "quoteTradedRaw": 11000000
+            },
+            "0x0000000000000000000000000000000000000003": {
+              "fillLots": 200,
+              "quoteTradedRaw": 20000000
+            },
+            "0x0000000000000000000000000000000000000001": {
+              "fillLots": 100,
+              "quoteTradedRaw": 9000000
+            }
+          }
+        }
+      },
+      {
+        "arrivalOrder": [
+          3,
+          1,
+          2
+        ],
+        "continuousBook": {
+          "trades": [
+            {
+              "lots": 200,
+              "priceTicks": 900
+            }
+          ],
+          "fills": {
+            "0x0000000000000000000000000000000000000003": {
+              "fillLots": 200,
+              "quoteTradedRaw": 18000000
+            },
+            "0x0000000000000000000000000000000000000001": {
+              "fillLots": 200,
+              "quoteTradedRaw": 18000000
+            },
+            "0x0000000000000000000000000000000000000002": {
+              "fillLots": 0,
+              "quoteTradedRaw": 0
+            }
+          }
+        }
+      },
+      {
+        "arrivalOrder": [
+          3,
+          2,
+          1
+        ],
+        "continuousBook": {
+          "trades": [
+            {
+              "lots": 100,
+              "priceTicks": 900
+            },
+            {
+              "lots": 100,
+              "priceTicks": 900
+            }
+          ],
+          "fills": {
+            "0x0000000000000000000000000000000000000003": {
+              "fillLots": 200,
+              "quoteTradedRaw": 18000000
+            },
+            "0x0000000000000000000000000000000000000002": {
+              "fillLots": 100,
+              "quoteTradedRaw": 9000000
+            },
+            "0x0000000000000000000000000000000000000001": {
+              "fillLots": 100,
+              "quoteTradedRaw": 9000000
+            }
+          }
+        }
+      }
+    ]
+  }
+}

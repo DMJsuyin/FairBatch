@@ -1,0 +1,12 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {createPublicClient,http} from 'viem';
+import {fairBatchAbi} from '../src/abi.ts';
+const d=JSON.parse(fs.readFileSync(process.argv[2]||'public/fairbatch.json','utf8'));
+const c=createPublicClient({transport:http(process.env.FAIRBATCH_RPC||'http://127.0.0.1:8547')});
+const read=(functionName:string,args:any[]=[])=>c.readContract({address:d.contract,abi:fairBatchAbi,functionName:functionName as any,args:args as any})as Promise<any>;
+const id=await read('currentRound'),phase=await read('phase',[id]);
+assert.ok(id===0n||phase===4||phase===5,'Old market has an active round');
+assert.equal(await read('baseLiability'),0n,'Old market has unclaimed base');
+assert.equal(await read('quoteLiability'),0n,'Old market has unclaimed quote');
+console.log('Safe to replace manifest: old market is closed with zero liabilities',d.contract);
