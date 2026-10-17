@@ -474,7 +474,11 @@ async function keeperTick() {
         if (!S.session || !S.myAuth && action === 'reveal') return;
         S.inflight.add(key(action));
         sendSession(label, fn, args)
-          .catch((e) => { const n = errName(e); if (!['WrongPhase', 'AlreadyRevealed', 'AlreadyClaimed'].includes(n)) log(`${label} 失败：${errMsg(e)}`, 'err'); })
+          .catch((e) => {
+            // 结算/取消/领取任何人都能做：被 keeper 或别人抢先完成时交易会回滚，属于正常情况，下一轮循环会读到最新状态
+            if (['settle', 'cancel', 'claim'].includes(action)) { log(`${label}：已由他人完成（keeper 抢先），无需重复`, 'info'); return; }
+            const n = errName(e); if (!['WrongPhase', 'AlreadyRevealed', 'AlreadyClaimed'].includes(n)) log(`${label} 失败：${errMsg(e)}`, 'err');
+          })
           .finally(() => setTimeout(() => S.inflight.delete(key(action)), 1500));
       };
       const p = Number(ph);
