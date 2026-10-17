@@ -231,6 +231,18 @@ contract SealBatchTest is Test {
         assertEq(sb.freeBase(u), 10e18);
     }
 
+    function test_timeoutCancel_grieferStillSlashed() public {
+        address u = _user(1);
+        O memory o = O(u, true, 1e18, 20);
+        _toWindow(0);
+        _commit(0, o);
+        _toWindow(2 + T);
+        sb.cancel(0);
+        sb.claim(u, 0);
+        assertEq(sb.freeQuote(u), 1000e18 - BOND);
+        assertEq(sb.freeBase(u), 10e18);
+    }
+
     // ───── 拒绝：错 salt / 跨批重放 / 重复揭示 / 重复领取 / 阶段越界 / 越权 ─────
     function test_rejects() public {
         address u = _user(1);

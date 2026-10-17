@@ -343,7 +343,7 @@ contract SealBatch {
         emit Settled(batchId, b.priceTick, b.volume, b.rationedSide, b.marginalTick, b.rNum, b.rDen, b.slashPool);
     }
 
-    /// @notice 超时仍无人结算：任何人可整轮取消，所有锁仓（含保证金）全额退回
+    /// @notice 超时仍无人结算：任何人可整轮取消，锁仓全额退回；已揭示者退保证金，弃标者保证金仍罚没
     function cancel(uint256 batchId) external {
         if (phaseOf(batchId) != 3) revert WrongPhase();
         _batches[batchId].cancelled = true;
@@ -379,7 +379,7 @@ contract SealBatch {
         if (o.commitHash == bytes32(0)) return (0, 0);
         baseOut = o.lockedBase;
         quoteOut = o.lockedQuote;
-        if (b.cancelled) return (baseOut, quoteOut + bond);
+        if (b.cancelled) return (baseOut, o.revealed ? quoteOut + bond : quoteOut); // 取消也不放过弃标者
         if (!b.settled) return (0, 0);
         if (!o.revealed) return (baseOut, quoteOut); // 保证金罚没
         quoteOut += bond;

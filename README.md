@@ -1,18 +1,62 @@
-└── README.md
+# FairBatch · SealBatch 封盘
+
+> 秒级出结果 · 看不出买卖 · 一次授权 —— Monad 上的密封集合竞价（Sealed Uniform-Price Batch Auction）
+
+Monad Blitz 上海 · 2026-10-17 · 测试网原型，**未审计，不涉及真实资金**
+
+## 一句话
+
+先封单、后开盘、统一价，几秒一批。所有状态和清算都在 Monad 测试网合约里，任何人都能触发结算、任何人都能复算结果。
+
+## 和已有方案的区别
+
+| | 透明订单簿 / AMM | CoW Protocol | 普通 Commit-Reveal（往届项目） | **SealBatch** |
+|---|---|---|---|---|
+| 下单时别人能看到报价 | 能 | 能（链下意图） | 看不到报价，但**锁仓暴露方向和金额** | **看不出买卖方向和数量**（金库整体锁仓） |
+| 一批多久 | 即时 | 约 30 秒，以太坊 | 分钟级 | **约 5 秒一个窗口，流水线并行** |
+| 用户签名次数 | 1 | 1 | 2 次以上（提交 + 揭示） | **钱包只签 1 次**（会话密钥自动提交和揭示） |
+| 谁来撮合 | 合约 / 做市商 | 链下 solver | 合约 | 合约，**任何人可结算，超时任何人可整轮取消** |
+| 有人故意不揭示 | — | — | 通常不处理 | **保证金罚没，并补偿给本批成交者** |
+
+## 规则（v0，合约即规范）
+
+- **批次时间轴**：窗口 = (区块号 − 创世区块) / 16。批次 k 在窗口 k 收承诺，窗口 k+1 揭示，窗口 k+2 起任何人可结算；超过 10 个窗口仍未结算，任何人可整轮取消，全额退款。结算与取消互斥。
+- **价格档位**：price(t) = 90 + 0.5·t SUSD/SBA，t ∈ [0, 40]。
+- **承诺**：`keccak256(abi.encode(合约, chainid, batchId, owner, isBuy, qty, tick, salt))`，防跨批次、跨链、跨合约重放。
+- **锁仓**：提交时锁住该账户金库里两种币的**全部**可用余额，并扣 1 SUSD 保证金，链上看不出方向和数量。
+- **清算**：候选价 = 已揭示订单的去重限价档。选成交量 V = min(D, S) 最大的档位；并列时升序取中位，偶数个取较低者。过量一方从最优价逐档全额成交，边际档按比例分配。所有成交统一按清算价。
+- **手续费**：收到的资产扣 5 bps，用来覆盖整数舍入尾差，保证合约余额 ≥ 全部负债（已用 fuzz 测试验证）。
+- **弃标**：没揭示的订单保证金罚没，按成交量补偿给本批成交者。
+
+## 诚实边界
+
+- 哈希是承诺，不是加密，揭示后订单公开。
+- 向金库存款这个动作本身是可见的。
+- 保证金只能提高弃标成本，无法根除"看行情决定揭不揭示"的期权。
+- 不宣称防 MEV、零滑点、最优价。
+- 所有揭示交易都写同一组档位数组，在并行 EVM 上属于热点状态，下一步会按档位分片。
+
+## 目录
+
 ```
-### 运行合约测试与验证
-[`contracts/test/SealBatch.t.sol`](contracts/test/SealBatch.t.sol) 已内置对 PRD 核心验收项的自动化验证（包括正常交叉 `test_simpleCross`、买卖边际配给 `test_buyRationed` / `test_sellRationed`、无交叉全额退款 `test_noCross_refundsAll`、偶数平局取低中位 `test_tieMedian`、Fuzz 顺序无关性 `testFuzz_orderIndependence`、Fuzz 资产守恒 `testFuzz_conservation`、弃标罚没补偿 `test_griefSlashCompensates`、超时整轮取消 `test_timeoutCancel` 及异常拒绝测试 `test_rejects`）：
+contracts/   Foundry：SealBatch.sol、MockToken.sol、测试、部署脚本
+abi/         合约 ABI
+docs/        静态前端（GitHub Pages 直接托管）（交易终端 + 流水线时间轴 + 清算看板 + 浏览器内独立复算）
+bots/        Node 机器人：做市机器人、keeper（自动结算/取消/领取）、路演场景脚本
+ref/         Python 独立参考模型 + 链上结果对账
+```
+
+## 快速开始
+
 ```bash
-cd contracts
-forge test -vvv
+# 合约测试
+cd contracts && forge test
+# 部署（.env 里写 PRIVATE_KEY=0x...）
+./deploy.sh
 ```
-### 部署到 Monad Testnet
-```bash
-cd contracts
-forge script script/Deploy.s.sol:Deploy --rpc-url <MONAD_TESTNET_RPC> --private-key <PRIVATE_KEY> --broadcast
-```
+
 ---
-## 👥 4. 团队角色与分工 (Team Roles & Workflow)
+## 👥 团队角色与分工 (Team Roles & Workflow)
 项目采用 **产品 + 程序 + 数据 + 队长** 协同与交叉验证机制：
 | 角色 | 核心职责 | 关键交付物 |
 | :--- | :--- | :--- |
@@ -21,7 +65,7 @@ forge script script/Deploy.s.sol:Deploy --rpc-url <MONAD_TESTNET_RPC> --private-
 | **数据与模型验证 (Data & Reference Model)** | 编写独立于合约的参考清算计算器（复算统一价、成交量、Pro-Rata 与罚没分红）、记录 Gas 消耗与同条件竞品（Kuru/聚合器）净到账对比 | 独立参考计算器、链上与模型 100% 对账表、Gas 与操作耗时实测报告 |
 | **队长 (Team Lead)** | 统筹时间线推进（规则冻结 $\rightarrow$ 并行开发 $\rightarrow$ 对抗测试 $\rightarrow$ 冻结复核）、汇总链上证据与备用演示视频并完成最终提交 | 完整开源仓库、测试网交易证据清单、MOJO 平台提交凭据 |
 ---
-## ✅ 5. 交付验收清单 (Acceptance Criteria)
+## ✅ 交付验收清单 (Acceptance Criteria)
 - [x] **正常成交与四类标准用例测试**：覆盖正常交叉、买/卖部分成交配给、多解平局取中位、无交叉全额退款（见 [`SealBatch.t.sol`](contracts/test/SealBatch.t.sol)）。
 - [x] **顺序无关性验证 (`testFuzz_orderIndependence`)**：固定同一组已揭示订单，打乱提交与揭示先后顺序，最终清算价、总成交量与各人成交量 100% 一致。
 - [x] **资产守恒与价格边界保护 (`testFuzz_conservation`)**：验证合约余额恒大于等于所有负债，任何买方成交价 $\le$ 限价、卖方成交价 $\ge$ 限价。
