@@ -1,0 +1,30 @@
+{
+  "date": "2026-10-17",
+  "chainId": 10143,
+  "contract": "0x10886f059743e61585e4c762b459a9ecdcb61343",
+  "round": "4",
+  "fullTests": 31,
+  "focusedRetest": 5,
+  "finalSignedServiceRetest": "passed",
+  "build": "passed",
+  "chainPidBefore": 973134,
+  "chainPidAfter": 973134,
+  "webPid": 1745689,
+  "publicBrowser": "WebKit",
+  "mobile": {
+    "viewport": 390,
+    "scrollWidth": 384
+  },
+  "relayerMON": "1.199480496",
+  "hashes": {
+    "scripts/chain.ts": "7585448f16ee9295b557b211aada51800e71fa3599f9dcec634a003aa56c6fd3",
+    "scripts/fairbatch-service.ts": "89824f367c2323af6951388f437760b31f0be47e7148543d68ebde1f2eb07796",
+    "scripts/fairbatch-runtime.ts": "3385fb963ad64d9bd69db2a08b3436ae860cc6dbcbf8ae3c2b6c73cd0d929db3",
+    "src/fairbatch/App.tsx": "1a5d8b022d46e322bab2812583f78988a3147993e553ec1d6067b7eb9a600266",
+    "src/fairbatch/client.ts": "f4ea58fc331107f1a8f2fc628e417c73f5bf7479d6250587b37bf99fbd5d67fa",
+    "src/fairbatch/depth.ts": "755bad0f3240b447651e5a213e0c577527c17eb7504ce5546175fbf63498f3d7",
+    "src/fairbatch/experience.ts": "febab16a52c049214ae4d3a9821f017d8eda944e919d8982b89e60627c286fed",
+    "src/fairbatch/style.css": "558760cc1d316c16e7efb383582ef4eda81185027220c3c67eb712dff8dc8e78",
+    "dist/index.html": "3388f740bd766b9037d5d5fc3e494660449dbd190b1805f590583efc81f2e725"
+  }
+}

@@ -129,7 +129,7 @@ EIP-712 本身不提供重放保护，本项目显式实现 nonce、deadline 和
 
 ## 交付与接续
 
-入口 `https://clob.reallier.com/fairbatch`，部署在 Server 78，沿用 Cloudflare 路由。当前实际链为 Local EVM / chainId 31337；Monad 测试网部署脚本保留，公共测试网 Gas 到账后需另行部署并切换 manifest。
+入口 `https://clob.reallier.com/fairbatch`，部署在 Server 78，沿用 Cloudflare 路由。当前 FairBatch 实际运行于 Monad Testnet / chainId 10143，合约 `0x10886f059743e61585e4c762b459a9ecdcb61343`。Server 78 提供签名代发、对手盘及 Keeper；CLOB 对照仍使用独立 Local EVM。部署与验收细节见 `Monad-Runbook.md` 和 `monad-verification.json`。
 
 核心文件：`contracts/BatchMath.sol`、`contracts/FairBatch.sol`、`src/fairbatch/protocol.ts`、`scripts/fairbatch-service.ts`。不要把清算结果改为由 API 返回并直接执行，或取消链上完整性校验。
 

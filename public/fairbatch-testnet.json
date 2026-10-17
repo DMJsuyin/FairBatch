@@ -1,0 +1,18 @@
+{
+  "protocolVersion": "0.3",
+  "counterparties": [
+    "0x2B92998550E7F7A37DB85AB048fb3542CDCc3C04",
+    "0xD5c154164bFa2578a4bb96c96a58d406fC9C4c0c",
+    "0x930a65d1bEeae70fd4588bd85dD76f79d41dA8Ae",
+    "0x8434041f3711a5DB9a59EaB3d7fF36567AeCD629"
+  ],
+  "chainId": 10143,
+  "network": "Monad Testnet",
+  "rpc": "https://testnet-rpc.monad.xyz",
+  "base": "0x0ae51f8a0ccf83e116565dbf152ca0a1e69edca8",
+  "quote": "0x28e57a47993bda6ad1eaa89ea48b58e0978a8812",
+  "contract": "0x10886f059743e61585e4c762b459a9ecdcb61343",
+  "deployBlock": 71756070,
+  "relayer": true,
+  "createdAt": "2026-10-17T07:02:04.489Z"
+}

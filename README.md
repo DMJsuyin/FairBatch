@@ -2,7 +2,7 @@
 
 # CLOB / Grid · Monad 链上网格交易终端
 
-Solidity 全链限价订单簿 + 单页交易终端 + 意图转网格。无登录，钱包签名，链上撮合和资金结算。面向 Monad 黑客松的交易应用。当前站点连接 Local Testnet；Monad Testnet 部署脚本见下文。
+Solidity 全链限价订单簿 + 单页交易终端 + 意图转网格。无登录，钱包签名，链上撮合和资金结算。面向 Monad 黑客松的交易应用。FairBatch 主产品运行于 Monad Testnet（10143）；CLOB 对照终端保留独立 Local EVM（31337）。
 
 ## 快速运行
 
@@ -18,8 +18,6 @@ npm run local  # 保持运行：本地链、部署、测试资金与真实链上
 ```sh
 npm run dev
 ```
-
-开发服务默认监听所有网卡，启动日志会同时显示 `Local` 和 `Network` 地址。同一局域网内的设备可使用日志中的 `http://<本机局域网 IP>:5177` 访问。
 
 打开 http://127.0.0.1:5177 ，点「使用测试钱包，开始交易」→「规则解析」→检查八档价格与数量→「签名并挂出」。在「我的挂单」撤单；「手动交易」支持限价和带价格保护的 IOC 吃单；「充值 / 提取」管理合约余额。Arena 每轮最多执行 20 笔真实本地交易，由规则驱动的对手盘提供成交。
 
@@ -43,7 +41,7 @@ npm run build  # TypeScript + 生产前端
 
 复制 `.env.example` 为 `.env.local`，配置模型地址与名称，必要时填服务端密钥，重启开发服务器。页面点「AI 解析」。未配置时可使用规则解析。模型输出仍需经过范围校验、用户预览与钱包签名。密钥不进入前端构建。
 
-AI 代理仅为本地开发服务器端点。静态站点部署可继续使用规则解析；若要线上 AI，需要自行部署受限的模型代理。合约交易不依赖模型。
+开发服务器与线上服务共用 `scripts/intent-model.ts`，均提供 `/api/intent`。Server 78 通过 systemd 的 `.local/intent-model.env` 读取 `LLM_BASE_URL`、`LLM_MODEL`、`LLM_API_KEY`，使用现有 DeepSeek 服务的 `deepseek-flash`；凭证只保留服务器。请求关闭思考、JSON 输出最多 512 token、30 秒超时；线上每 IP 每分钟最多 12 次、最多 4 个模型请求并发。模型响应经整数、区间和资金校验后才进入预览，失败不会伪装成 AI 成功或自动下单。合约交易不依赖模型。
 
 ## Monad 测试网
 
@@ -81,9 +79,9 @@ npm run build
 
 ## Server 78 / Cloudflare 演示部署
 
-公开入口：`https://clob.reallier.com`。当前连接 Local Testnet（chainId 31337），使用 dMON / dUSDC 测试资产。链服务重启后重新部署；快捷钱包保存在当前浏览器会话中。
+公开入口：`https://clob.reallier.com`。CLOB 对照终端连接 Local EVM（31337）；FairBatch 使用独立的 Monad Testnet（10143）合约与测试资产。链服务重启后重新部署；快捷钱包保存在当前浏览器会话中。
 
-访客点击「使用测试钱包，开始交易」，浏览器生成签名密钥，领取测试 Gas 并初始化测试资产；网格挂单、撮合和撤单均提交到该演示 EVM。AI 模型接口尚未配置，规则解析可用；Arena 提供规则驱动的自动对手盘。
+访客点击「使用测试钱包，开始交易」，浏览器生成签名密钥，领取测试 Gas 并初始化测试资产；网格挂单、撮合和撤单均提交到该演示 EVM。AI 意图解析接入 DeepSeek Flash，规则解析仍可用；Arena 提供规则驱动的自动对手盘。
 
 部署路径 `/data/app-stacks/monad-clob-grid`，Node 22.12+。执行 `npm ci`、`npm run build`，按环境调整 `deploy/*.service` 后安装到 `/etc/systemd/system/`，执行 `systemctl daemon-reload && systemctl enable --now clob-chain clob-web`。服务用户需有项目目录写权限。
 
@@ -99,3 +97,6 @@ npm run build
 ## FairBatch v0.3 协议升级
 
 算法、密码学、Gas 对比和五分钟讲解见 [技术机制与路演底稿](docs/Protocol-v03.md)。运行 `npm run fairbatch:benchmark` 可重新编译 v0.2 基线并比较完整清算/领取成本；`npm run fairbatch:verify -- docs/public-verification-v03.json` 可独立复核公网结果。
+
+
+FairBatch 的网络配置、重启恢复、钱包直连、端到端验收及图表/体验改动见 [Monad 运行手册](docs/Monad-Runbook.md)。

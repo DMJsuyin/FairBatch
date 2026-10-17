@@ -75,3 +75,8 @@ Linux 安装说明：Ganache 发布包里的嵌套 fsevents 是 Chokidar 的可�
 ## v0.3 本次公网验收
 
 新合约 `0x6c79e58f893daba460823c54307baa45e998df19`，chainId 31337。第 1 轮 5 笔全部揭示并领取，成交总量 16 dMON、统一价 1.00。测试买单以 EIP-712 委托提交，锁仓填充到 8 dUSDC；收到 5 dMON 与 3 dUSDC 退款。链上 `IntentExecuted` 和 `ClearingVerified(usedWitness=true)` 事件均已核验，独立结果哈希一致，两种 liability 为零。见 `public-verification-v03.json`。
+
+
+## Monad 运行闭环（2026-10-17）
+
+以上 Local EVM 记录保留作历史基准。当前公网 FairBatch 已切至 Monad Testnet（10143），合约 `0x10886f059743e61585e4c762b459a9ecdcb61343`；第 2 轮五单全部揭示、清算、领取，买单收到 5 dMON + 3 dUSDC 退款，负债归零。服务、图表与体验交接见 `Monad-Runbook.md`，实际链上记录见 `monad-verification.json`。

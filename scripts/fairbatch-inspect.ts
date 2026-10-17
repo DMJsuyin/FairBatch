@@ -17,8 +17,8 @@ if(result.phase===4){
  Object.assign(result,{independentClearingVerified:true,independent});
  if(d.protocolVersion==='0.3'){
   const latest=await client.getBlockNumber(),events:any[]=[];
-  for(let from=BigInt(d.deployBlock);from<=latest;from+=500n){
-   const to=from+499n<latest?from+499n:latest;
+  for(let from=BigInt(d.deployBlock);from<=latest;from+=100n){
+   const to=from+99n<latest?from+99n:latest;
    for(const eventName of ['IntentExecuted','ClearingVerified']as const)events.push(...await client.getContractEvents({address:d.contract,abi:fairBatchAbi,eventName,fromBlock:from,toBlock:to}));
   }
   const relevant=events.filter(e=>e.args.roundId===id);

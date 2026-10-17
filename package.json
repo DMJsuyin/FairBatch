@@ -7,7 +7,7 @@
     "compile": "node --import tsx scripts/compile.ts",
     "test": "node --import tsx --test test/*.test.ts",
     "build": "tsc --noEmit && vite build",
-    "dev": "vite --host 0.0.0.0",
+    "dev": "vite --host 127.0.0.1",
     "local": "node --import tsx scripts/local.ts",
     "deploy:testnet": "node --import tsx scripts/deploy.ts",
     "check": "npm run compile && npm test && npm run build",
@@ -15,7 +15,8 @@
     "fairbatch:testnet": "node --import tsx scripts/fairbatch-deploy.ts --testnet",
     "fairbatch:api": "PORT=5197 PUBLIC_ORIGIN=http://127.0.0.1:5177 INTERNAL_RPC=http://127.0.0.1:8545 node --import tsx scripts/serve.ts",
     "fairbatch:benchmark": "node --import tsx scripts/fairbatch-benchmark.ts",
-    "fairbatch:verify": "node --import tsx scripts/fairbatch-inspect.ts"
+    "fairbatch:verify": "node --import tsx scripts/fairbatch-inspect.ts",
+    "fairbatch:smoke": "node --import tsx scripts/fairbatch-smoke.ts"
   },
   "dependencies": {
     "@openzeppelin/contracts": "5.6.1",

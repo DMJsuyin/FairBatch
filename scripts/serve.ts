@@ -1,10 +1,12 @@
-import {fairBatchService} from './fairbatch-service.ts';
+import {fairBatchService,BatchServiceError} from './fairbatch-service.ts';
+import {createIntentModel,IntentError} from './intent-model.ts';
 import http from 'node:http';import fs from 'node:fs';import path from 'node:path';
 import {createPublicClient,createWalletClient,http as transport,isAddress,parseEther,type Address} from 'viem';
 import {localChain,transact} from './chain.ts';import {bookAbi} from '../src/abi.ts';import {validateRpc} from './rpc-policy.ts';
 const port=Number(process.env.PORT||5187),origin=process.env.PUBLIC_ORIGIN||`http://127.0.0.1:${port}`;
 const rpc=process.env.INTERNAL_RPC||'http://127.0.0.1:8547';
 const fairbatch=fairBatchService(rpc);
+const parseModelIntent=createIntentModel(process.env);
 const buckets=new Map<string,{start:number;count:number}>(),funded=new Map<string,number>();let fundQueue=Promise.resolve(),arenaQueue=Promise.resolve(),arenaStep=0;
 const client=createPublicClient({chain:localChain,transport:transport(rpc),pollingInterval:250});
 const manifest=()=>JSON.parse(fs.readFileSync('public/deployment.json','utf8'));
@@ -17,6 +19,7 @@ const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url||'/',origin);
   if(url.pathname==='/health'){json(200,{status:'ok',mode:'server-demo',chainId:await client.getChainId(),block:String(await client.getBlockNumber())});return;}
   if(url.pathname==='/fairbatch.json'){const d=fairbatch.manifest();json(d?200:404,d||{error:'FairBatch not deployed'});return;}
+  if(url.pathname==='/api/fairbatch/status'){json(200,fairbatch.status());return;}
   if(url.pathname==='/deployment.json'){const d=manifest();json(200,{chainId:31337,network:'Server 78 演示链',rpc:'/rpc',base:d.base,quote:d.quote,book:d.book,deployBlock:d.deployBlock,demoHosted:true});return;}
   if(req.method==='POST'){
    if(req.headers.origin&&req.headers.origin!==origin)throw new Error('Origin denied');
@@ -24,9 +27,13 @@ const server=http.createServer(async(req,res)=>{
    const ip=String(req.headers['cf-connecting-ip']||req.socket.remoteAddress);
    rate(ip,1200);let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>65536)throw new Error('Request too large');}
    const body=JSON.parse(raw),d=manifest();
-   if(url.pathname.startsWith('/api/fairbatch/')){rate(`${ip}:fairbatch`,30);json(200,await fairbatch.handle(url.pathname.split('/').at(-1)!,body));return;}
+   if(url.pathname.startsWith('/api/fairbatch/')){
+    rate(`${ip}:fairbatch`,30);if(url.pathname.endsWith('/fund'))rate(`${ip}:batch-fund`,4);
+    try{json(200,await fairbatch.handle(url.pathname.split('/').at(-1)!,body));}
+    catch(e){json(e instanceof BatchServiceError?e.status:400,{error:(e as any).shortMessage||(e as Error).message});}return;
+   }
    if(url.pathname==='/rpc'){
-    try{validateRpc(body,[d.base,d.quote,d.book,...(fairbatch.manifest()?[fairbatch.manifest().contract]:[])]);if(body.method==='eth_sendRawTransaction')rate(`${ip}:writes`,45);}catch(e){json(200,{jsonrpc:'2.0',id:body?.id??null,error:{code:-32601,message:(e as Error).message}});return;}
+    try{validateRpc(body,[d.base,d.quote,d.book,...(fairbatch.manifest()?[fairbatch.manifest()!.contract]:[])]);if(body.method==='eth_sendRawTransaction')rate(`${ip}:writes`,45);}catch(e){json(200,{jsonrpc:'2.0',id:body?.id??null,error:{code:-32601,message:(e as Error).message}});return;}
     const r=await fetch(rpc,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});json(200,await r.json());return;
    }
    if(url.pathname==='/api/demo/fund'){
@@ -41,7 +48,10 @@ const server=http.createServer(async(req,res)=>{
      const wallet=createWalletClient({account:d.arenaAccount,chain:localChain,transport:transport(rpc)});return transact(client,wallet,d.book,bookAbi,'placeOrder',[{isBuy:buy,price:top.price,lots:top.lots<100n?top.lots:100n,postOnly:false,ioc:true,minFill:1n}]);});
     arenaQueue=task.then(()=>{}).catch(()=>{});const receipt=await task;json(200,{hash:receipt.transactionHash,gas:String(receipt.gasUsed)});return;
    }
-   if(url.pathname==='/api/intent'){json(503,{error:'线上演示尚未配置模型服务，请使用规则解析。'});return;}
+   if(url.pathname==='/api/intent'){
+    try{rate(`${ip}:intent`,12);}catch{json(429,{error:'AI 请求较频繁，请稍后重试'});return;}
+    try{json(200,await parseModelIntent(body));}catch(e){json(e instanceof IntentError?e.status:500,{error:e instanceof IntentError?e.message:'AI 解析暂时失败'});}return;
+   }
    json(404,{error:'Not found'});return;
   }
   if(req.method!=='GET'&&req.method!=='HEAD'){json(405,{error:'Method not allowed'});return;}

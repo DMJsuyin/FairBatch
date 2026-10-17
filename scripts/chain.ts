@@ -15,9 +15,23 @@ export async function deployMarket(publicClient:any, wallet:any, artifacts:any) 
   return {base,quote,book,deployBlock:Number(await publicClient.getBlockNumber())};
 }
 export async function transact(client:any,wallet:any,address:Address,abi:any,functionName:string,args:any[]=[]) {
+  if(wallet.account?.type==='local'){
+    const [gas,gasPrice,nonce]=await Promise.all([
+      client.estimateContractGas({account:wallet.account,address,abi,functionName,args}),
+      client.getGasPrice(),
+      client.getTransactionCount({address:wallet.account.address,blockTag:'pending'}),
+    ]);
+    const serializedTransaction=await wallet.account.signTransaction({chainId:wallet.chain.id,to:address,data:encodeFunctionData({abi,functionName,args}),gas:gas*120n/100n,gasPrice,nonce,type:'legacy',value:0n});
+    const hash=await client.sendRawTransaction({serializedTransaction});
+    const receipt=await client.waitForTransactionReceipt({hash});
+    if(receipt.status!=='success')throw Error(`${functionName} reverted`);
+    return receipt;
+  }
   const {request}=await client.simulateContract({account:wallet.account,address,abi,functionName,args});
   const gas = await client.estimateContractGas({account:wallet.account,address,abi,functionName,args});
-  const hash=await wallet.writeContract({...request,gas:gas*120n/100n});
+  // Explicit legacy fees also work for freshly funded low-balance Monad test wallets.
+  const fees=wallet.chain?.id===10143?{type:'legacy',gasPrice:await client.getGasPrice()}:{};
+  const hash=await wallet.writeContract({...request,...fees,gas:gas*120n/100n});
   const receipt=await client.waitForTransactionReceipt({hash});
   if(receipt.status!=='success') throw new Error(`${functionName} reverted`);
   return receipt;
